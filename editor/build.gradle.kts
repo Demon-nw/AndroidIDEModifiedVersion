@@ -30,6 +30,8 @@ dependencies {
     
     api(projects.editorApi)
     api(projects.editorTreesitter)
+    
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
 
     implementation(libs.androidx.annotation)
     implementation(libs.androidx.appcompat)

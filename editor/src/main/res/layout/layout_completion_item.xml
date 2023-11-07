@@ -74,6 +74,22 @@
     app:layout_constraintStart_toEndOf="@+id/completion_iconText"
     app:layout_constraintTop_toBottomOf="@id/completion_label"
     tools:text="com.itsaky.androidide.activities.MainActivity" />
+    
+   <TextView
+    android:id="@+id/completion_translation"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="4dp"
+    android:ellipsize="end"
+    android:gravity="center_vertical"
+    android:singleLine="true"
+    android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+    android:textColor="?attr/colorSecondaryVariant"
+    android:textSize="11sp"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toEndOf="@+id/completion_iconText"
+    app:layout_constraintTop_toBottomOf="@id/completion_detail"
+    tools:text="翻译内容" />
 
   <TextView
     android:id="@+id/completion_api_info"
@@ -90,7 +106,7 @@
     android:textSize="11sp"
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintStart_toEndOf="@id/completion_iconText"
-    app:layout_constraintTop_toBottomOf="@id/completion_detail"
+    app:layout_constraintTop_toBottomOf="@id/completion_translation"
     tools:text="Added in API 1" />
 
   <TextView

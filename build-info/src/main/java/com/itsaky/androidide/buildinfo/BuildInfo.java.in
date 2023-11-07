@@ -41,8 +41,8 @@ public class BuildInfo {
   // --------- CI info --------------------
 
   public static final boolean CI_BUILD = @@CI_BUILD@@;
-  public static final String CI_GIT_BRANCH = "@@CI_GIT_BRANCH@@";
-  public static final String CI_GIT_COMMIT_HASH = "@@CI_COMMIT_HASH@@";
+  public static final String CI_GIT_BRANCH = "fatal: not a git repository (or any parent up to mount point /)Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).";
+  public static final String CI_GIT_COMMIT_HASH = "fatal: not a git repository (or any parent up to mount point /)Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).";
 
   // ------- SCM info --------------------
 

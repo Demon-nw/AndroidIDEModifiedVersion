@@ -28,7 +28,7 @@ import com.itsaky.androidide.resources.R
 /** @author Akash Yadav */
 object CodeActionsMenu : ActionMenu {
   
-  const val ID = "editor_text_codeActions"
+  const val ID = "ide.editor.code.actions"
 
   override val children: MutableSet<ActionItem> = mutableSetOf()
   override val id: String = ID
@@ -42,21 +42,9 @@ object CodeActionsMenu : ActionMenu {
   override var location: ActionItem.Location = ActionItem.Location.EDITOR_TEXT_ACTIONS
 
   override fun prepare(data: ActionData) {
+    super.prepare(data)
     if (icon == null) {
       icon = ContextCompat.getDrawable(data[Context::class.java]!!, R.drawable.ic_code)
     }
-    visible = children.size > 0 && atLeastOneChildVisible(data)
-    enabled = true
-  }
-
-  private fun atLeastOneChildVisible(data: ActionData): Boolean {
-    for (child in children) {
-      child.prepare(data)
-      if (child.visible) {
-        return true
-      }
-    }
-
-    return false
   }
 }

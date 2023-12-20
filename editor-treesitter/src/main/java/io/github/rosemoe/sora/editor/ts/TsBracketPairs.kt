@@ -47,8 +47,8 @@ class TsBracketPairs(private val tree: TSTree, private val languageSpec: TsLangu
   }
 
   override fun getPairedBracketAt(text: Content, index: Int): PairedBracket? {
-    if (languageSpec.bracketsQuery.patternCount <= 0
-      || !languageSpec.bracketsQuery.canAccess()
+    if (!languageSpec.bracketsQuery.canAccess()
+      || languageSpec.bracketsQuery.patternCount <= 0
       || !tree.canAccess()
     ) {
       return null
@@ -63,9 +63,7 @@ class TsBracketPairs(private val tree: TSTree, private val languageSpec: TsLangu
         query = languageSpec.bracketsQuery,
         tree = tree,
         recycleNodeAfterUse = true,
-        matchCondition = null,
         whileTrue = { !matched },
-        onClosedOrEdited = null,
         debugName = "TsBracketPairs.getPairedBracketAt()"
       ) { match ->
         if (!languageSpec.bracketsPredicator.doPredicate(languageSpec.predicates, text, match)) {

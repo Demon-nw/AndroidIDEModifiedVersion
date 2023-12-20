@@ -19,17 +19,18 @@ package com.itsaky.androidide.actions.etc
 
 import android.content.Context
 import androidx.core.content.ContextCompat
-import com.itsaky.androidide.resources.R
 import com.itsaky.androidide.actions.ActionData
 import com.itsaky.androidide.actions.ActionItem
 import com.itsaky.androidide.actions.ActionMenu
 import com.itsaky.androidide.actions.EditorActivityAction
+import com.itsaky.androidide.resources.R
 
 /** @author Akash Yadav */
-class FindActionMenu(context: Context, override val order: Int) : EditorActivityAction(), ActionMenu {
+class FindActionMenu(context: Context, override val order: Int) : EditorActivityAction(),
+  ActionMenu {
 
   override val children: MutableSet<ActionItem> = mutableSetOf()
-  override val id: String = "editor_findActions"
+  override val id: String = "ide.editor.find"
 
   init {
     label = context.getString(R.string.menu_find)
@@ -40,7 +41,7 @@ class FindActionMenu(context: Context, override val order: Int) : EditorActivity
   }
 
   override fun prepare(data: ActionData) {
-    visible = true
-    enabled = children.size > 0
+    super<EditorActivityAction>.prepare(data)
+    super<ActionMenu>.prepare(data)
   }
 }

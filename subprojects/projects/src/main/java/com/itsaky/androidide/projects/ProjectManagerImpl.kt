@@ -51,7 +51,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
@@ -158,7 +157,7 @@ class ProjectManagerImpl : IProjectManager, EventReceiver {
   }
 
   override fun findModuleForFile(file: File, checkExistance: Boolean): ModuleProject? {
-    if (!checkInit()) {
+    if (!isInitialized()) {
       return null
     }
 
@@ -166,7 +165,7 @@ class ProjectManagerImpl : IProjectManager, EventReceiver {
   }
 
   override fun containsSourceFile(file: Path): Boolean {
-    if (!checkInit()) {
+    if (!isInitialized()) {
       return false
     }
 
@@ -216,6 +215,10 @@ class ProjectManagerImpl : IProjectManager, EventReceiver {
 
     if (!builder.isToolingServerStarted()) {
       flashError(R.string.msg_tooling_server_unavailable)
+      return
+    }
+
+    if (builder.isBuildInProgress) {
       return
     }
 
@@ -297,15 +300,6 @@ class ProjectManagerImpl : IProjectManager, EventReceiver {
   }
 
   private fun isInitialized() = rootProject != null
-
-  private fun checkInit(): Boolean {
-    if (isInitialized()) {
-      return true
-    }
-
-    log.warn("GradleProject is not initialized yet!")
-    return false
-  }
 
   private fun generateSourcesIfNecessary(event: FileEvent) {
     val builder = Lookup.getDefault().lookup(BuildService.KEY_BUILD_SERVICE) ?: return

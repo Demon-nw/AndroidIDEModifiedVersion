@@ -19,13 +19,13 @@ package com.itsaky.androidide.plugins
 
 import com.itsaky.androidide.plugins.properties.PropertiesParser
 import com.itsaky.androidide.plugins.properties.gen.ClassGenerator
-import java.io.File
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.compile.JavaCompile
+import java.io.File
 
 /**
  * Translates a .properties file into a .java file containing an enum-like Java class which defines
@@ -76,7 +76,7 @@ private val Project.resDir: File
   get() = file("src/main/resources")
 
 private val Project.propsDir: File
-  get() = File(buildDir, "generated/properties")
+  get() = layout.buildDirectory.dir( "generated/properties").get().asFile
 
 private fun Project.createParserOptions(): List<String> {
   val options = mutableListOf<String>()
@@ -86,10 +86,11 @@ private fun Project.createParserOptions(): List<String> {
     }
 
     val destPath =
-      it.path.substringAfter("src/main/resources".replace('/', File.separatorChar)).substringBeforeLast(File.separatorChar) +
-        File.separator +
-        ClassGenerator.toplevelName(it) +
-        ".java"
+      it.path.substringAfter("src/main/resources".replace('/', File.separatorChar))
+        .substringBeforeLast(File.separatorChar) +
+          File.separator +
+          ClassGenerator.toplevelName(it) +
+          ".java"
     val destFile = File(propsDir, destPath)
 
     if (destFile.exists() && destFile.lastModified() >= it.lastModified()) {

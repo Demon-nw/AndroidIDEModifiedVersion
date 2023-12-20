@@ -62,6 +62,7 @@ import com.itsaky.androidide.tooling.api.messages.toLogLine
 import com.itsaky.androidide.tooling.events.ProgressEvent
 import com.itsaky.androidide.utils.Environment
 import com.itsaky.androidide.utils.ILogger
+import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -236,7 +237,7 @@ class GradleBuildService : Service(), BuildService, IToolingApiClient,
 
   override fun logMessage(params: LogMessageParams) {
     val line = params.toLogLine()
-    serverLogger.log(line.priority, line.formattedTagAndMessage())
+    serverLogger.log(line.level, line.formattedTagAndMessage())
   }
 
   override fun logOutput(line: String) {
@@ -406,7 +407,8 @@ class GradleBuildService : Service(), BuildService, IToolingApiClient,
 
   internal fun startToolingServer(listener: OnServerStartListener?) {
     if (toolingServerRunner?.isStarted != true) {
-      toolingServerRunner = ToolingServerRunner(listener, this).also { it.startAsync() }
+      val envs = TermuxShellEnvironment().getEnvironment(this, false)
+      toolingServerRunner = ToolingServerRunner(listener, this).also { it.startAsync(envs) }
       return
     }
 

@@ -17,19 +17,14 @@
 
 package com.itsaky.androidide.preferences
 
-import android.content.Context
-import android.os.Build.VERSION
-import android.os.Build.VERSION_CODES
 import androidx.preference.Preference
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputLayout
 import com.itsaky.androidide.R
-import com.itsaky.androidide.app.IDEBuildConfigProvider
 import com.itsaky.androidide.preferences.internal.CUSTOM_GRADLE_INSTALLATION
 import com.itsaky.androidide.preferences.internal.GRADLE_CLEAR_CACHE
 import com.itsaky.androidide.preferences.internal.GRADLE_COMMANDS
 import com.itsaky.androidide.preferences.internal.LAUNCH_APP_AFTER_INSTALL
-import com.itsaky.androidide.preferences.internal.TP_FIX
 import com.itsaky.androidide.preferences.internal.gradleInstallationDir
 import com.itsaky.androidide.preferences.internal.isBuildCacheEnabled
 import com.itsaky.androidide.preferences.internal.isDebugEnabled
@@ -39,16 +34,15 @@ import com.itsaky.androidide.preferences.internal.isScanEnabled
 import com.itsaky.androidide.preferences.internal.isStacktraceEnabled
 import com.itsaky.androidide.preferences.internal.isWarningModeAllEnabled
 import com.itsaky.androidide.preferences.internal.launchAppAfterInstall
-import com.itsaky.androidide.preferences.internal.tpFix
 import com.itsaky.androidide.resources.R.drawable
 import com.itsaky.androidide.resources.R.string
 import com.itsaky.androidide.tasks.executeAsync
 import com.itsaky.androidide.utils.Environment.GRADLE_USER_HOME
 import com.itsaky.androidide.utils.flashError
 import com.itsaky.androidide.utils.flashSuccess
-import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize
 import java.io.File
+import kotlin.reflect.KMutableProperty0
 
 @Parcelize
 class BuildAndRunPreferences(
@@ -75,9 +69,6 @@ private class GradleOptions(
     addPreference(GradleCommands())
     addPreference(GradleDistrubution())
     addPreference(GradleClearCache())
-    if (IDEBuildConfigProvider.getInstance().isArm64v8aBuild() && VERSION.SDK_INT == VERSION_CODES.R) {
-      addPreference(TagPointersFix())
-    }
   }
 }
 
@@ -87,45 +78,18 @@ private class GradleCommands(
   override val title: Int = string.idepref_build_customgradlecommands_title,
   override val summary: Int? = string.idepref_build_customgradlecommands_summary,
   override val icon: Int? = drawable.ic_bash_commands,
-) : MultiChoicePreference() {
+) : PropertyBasedMultiChoicePreference() {
 
-  override fun getCheckedItems(): BooleanArray {
-    return booleanArrayOf(
-      isStacktraceEnabled,
-      isInfoEnabled,
-      isDebugEnabled,
-      isScanEnabled,
-      isWarningModeAllEnabled,
-      isBuildCacheEnabled,
-      isOfflineEnabled
+  override fun getProperties(): Map<String, KMutableProperty0<Boolean>> {
+    return linkedMapOf(
+      "--stacktrace" to ::isStacktraceEnabled,
+      "--info" to ::isInfoEnabled,
+      "--debug" to ::isDebugEnabled,
+      "--scan" to ::isScanEnabled,
+      "--warning-mode all" to ::isWarningModeAllEnabled,
+      "--build-cache" to ::isBuildCacheEnabled,
+      "--offline" to ::isOfflineEnabled,
     )
-  }
-
-  override fun getChoices(context: Context): Array<String> {
-    return arrayOf(
-      "--stacktrace",
-      "--info",
-      "--debug",
-      "--scan",
-      "--warning-mode all",
-      "--build-cache",
-      "--offline"
-    )
-  }
-
-  override fun onChoicesConfirmed(selectedPositions: List<Int>) {
-    for (position in selectedPositions) {
-      when (position) {
-        0 -> ::isStacktraceEnabled
-        1 -> ::isInfoEnabled
-        2 -> ::isDebugEnabled
-        3 -> ::isScanEnabled
-        4 -> ::isWarningModeAllEnabled
-        5 -> ::isBuildCacheEnabled
-        6 -> ::isOfflineEnabled
-        else -> null
-      }?.set(true)
-    }
   }
 }
 
@@ -148,26 +112,6 @@ private class GradleDistrubution(
     input.helperText = input.context.getString(string.msg_gradle_installation_input_help)
     input.isCounterEnabled = false
     input.editText!!.setText(gradleInstallationDir)
-  }
-}
-
-@Parcelize
-private class TagPointersFix(
-  override val key: String = TP_FIX,
-  override val title: Int = string.idepref_title_tpFix,
-  override val summary: Int? = string.idepref_msg_tpFix,
-  override val icon: Int? = drawable.ic_language_java,
-) : SwitchPreference() {
-
-  override fun onCreatePreference(context: Context): Preference {
-    val preference = super.onCreatePreference(context) as androidx.preference.SwitchPreference
-    preference.isChecked = tpFix
-    return preference
-  }
-
-  override fun onPreferenceChanged(preferece: Preference, newValue: Any?): Boolean {
-    tpFix = newValue as Boolean? ?: false
-    return true
   }
 }
 

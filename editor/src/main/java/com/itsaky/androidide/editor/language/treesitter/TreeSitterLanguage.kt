@@ -22,7 +22,6 @@ import com.itsaky.androidide.editor.language.IDELanguage
 import com.itsaky.androidide.editor.language.newline.TSBracketsHandler
 import com.itsaky.androidide.editor.language.utils.CommonSymbolPairs
 import com.itsaky.androidide.editor.schemes.IDEColorScheme
-import com.itsaky.androidide.editor.schemes.IDEColorSchemeProvider
 import com.itsaky.androidide.editor.schemes.LanguageScheme
 import com.itsaky.androidide.editor.schemes.LanguageSpecProvider.getLanguageSpec
 import com.itsaky.androidide.editor.schemes.LocalCaptureSpecProvider.newLocalCaptureSpec
@@ -33,6 +32,7 @@ import com.itsaky.androidide.treesitter.TSQueryCursor
 import com.itsaky.androidide.treesitter.TSQueryMatch
 import com.itsaky.androidide.utils.ILogger
 import io.github.rosemoe.sora.editor.ts.TsTheme
+import io.github.rosemoe.sora.lang.Language.INTERRUPTION_LEVEL_STRONG
 import io.github.rosemoe.sora.lang.analysis.AnalyzeManager
 import io.github.rosemoe.sora.text.ContentReference
 import io.github.rosemoe.sora.text.TextUtils
@@ -43,8 +43,11 @@ import io.github.rosemoe.sora.widget.SymbolPairMatch
  *
  * @author Akash Yadav
  */
-abstract class TreeSitterLanguage(context: Context, lang: TSLanguage, type: String) :
-  IDELanguage() {
+abstract class TreeSitterLanguage(
+  context: Context,
+  lang: TSLanguage,
+  private val langType: String
+) : IDELanguage() {
 
   private lateinit var tsTheme: TsTheme
   private lateinit var languageSpec: TreeSitterLanguageSpec
@@ -53,32 +56,20 @@ abstract class TreeSitterLanguage(context: Context, lang: TSLanguage, type: Stri
 
   private var languageScheme: LanguageScheme? = null
 
-  private val log = ILogger.newInstance("TreeSitterLanguage")
-
   init {
-    this.languageSpec = getLanguageSpec(context, type, lang, newLocalCaptureSpec(type))
+    this.languageSpec = getLanguageSpec(context, langType, lang, newLocalCaptureSpec(langType))
     this.tsTheme = TsTheme(languageSpec.spec.tsQuery)
-    IDEColorSchemeProvider.readScheme(context, type) { scheme ->
-      if (scheme == null) {
-        log.error("Failed to read color scheme")
-        return@readScheme
-      }
+  }
 
-      if (scheme !is IDEColorScheme) {
-        log.error("Invalid color scheme returned by color scheme provider", scheme)
-        return@readScheme
-      }
-
-      val langScheme = scheme.languages[type] ?: return@readScheme
-      this.languageScheme = langScheme
-      langScheme.styles.forEach { tsTheme.putStyleRule(it.key, it.value.makeStyle()) }
-
-      analyzer.langScheme = languageScheme
-    }
+  fun setupWith(scheme: IDEColorScheme?) {
+    val langScheme = scheme?.languages?.get(langType)
+    this.languageScheme = langScheme
+    this.analyzer.langScheme = languageScheme
+    langScheme?.styles?.forEach { tsTheme.putStyleRule(it.key, it.value.makeStyle()) }
   }
 
   open fun finalizeIndent(indent: Int): Int {
-    return indent * tabSize
+    return indent * getTabSize()
   }
 
   override fun getAnalyzeManager(): AnalyzeManager {
@@ -106,7 +97,7 @@ abstract class TreeSitterLanguage(context: Context, lang: TSLanguage, type: Stri
       content.toString(),
       line,
       column,
-      decrementBy = TextUtils.countLeadingSpaceCount(content.getLine(line), tabSize)
+      decrementBy = TextUtils.countLeadingSpaceCount(content.getLine(line), getTabSize())
     )
   }
 
@@ -119,38 +110,38 @@ abstract class TreeSitterLanguage(context: Context, lang: TSLanguage, type: Stri
     val indentsQuery = languageSpec.indentsQuery ?: return 0
     return TSParser.create().use { parser ->
       parser.language = languageSpec.language
-      val tree = parser.parseString(content)
+      return@use parser.parseString(content).use { tree ->
+        TSQueryCursor.create().use { cursor ->
+          cursor.exec(indentsQuery, tree.rootNode)
 
-      return@use TSQueryCursor.create().use { cursor ->
-        cursor.exec(indentsQuery, tree.rootNode)
-
-        var indent = 0
-        var match: TSQueryMatch? = cursor.nextMatch()
-        val captures = mutableListOf<TSQueryCapture>()
-        while (match != null) {
-          captures.addAll(match.captures)
-          match = cursor.nextMatch()
-        }
-
-        captures.sortBy { it.node.startByte }
-
-        for (capture in captures) {
-          val capLine = capture.node.startPoint.row
-          val capCol = capture.node.endPoint.column / 2
-
-          if (capLine > line || (capLine == line && capCol > column)) {
-            break
+          var indent = 0
+          var match: TSQueryMatch? = cursor.nextMatch()
+          val captures = mutableListOf<TSQueryCapture>()
+          while (match != null) {
+            captures.addAll(match.captures)
+            match = cursor.nextMatch()
           }
 
-          val captureName = indentsQuery.getCaptureNameForId(capture.index)
-          if (captureName == "indent") {
-            ++indent
-          } else if (captureName == "outdent") {
-            --indent
-          }
-        }
+          captures.sortBy { it.node.startByte }
 
-        finalizeIndent(indent) - decrementBy
+          for (capture in captures) {
+            val capLine = capture.node.startPoint.row
+            val capCol = capture.node.endPoint.column / 2
+
+            if (capLine > line || (capLine == line && capCol > column)) {
+              break
+            }
+
+            val captureName = indentsQuery.getCaptureNameForId(capture.index)
+            if (captureName == "indent") {
+              ++indent
+            } else if (captureName == "outdent") {
+              --indent
+            }
+          }
+
+          finalizeIndent(indent) - decrementBy
+        }
       }
     }
   }

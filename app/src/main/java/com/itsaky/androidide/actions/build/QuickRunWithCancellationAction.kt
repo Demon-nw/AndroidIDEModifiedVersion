@@ -67,7 +67,7 @@ class QuickRunWithCancellationAction(context: Context, override val order: Int) 
   override var requiresUIThread: Boolean = true
 
   override fun prepare(data: ActionData) {
-
+    super.prepare(data)
     val context = data.getActivity() ?: run {
       markInvisible()
       return
@@ -162,6 +162,10 @@ class QuickRunWithCancellationAction(context: Context, override val order: Int) 
       }
 
       handleResult(data, result, module, variant)
+    }.invokeOnCompletion { error ->
+      if (error != null) {
+        log.error("Failed to run '$taskName'", error)
+      }
     }
   }
 

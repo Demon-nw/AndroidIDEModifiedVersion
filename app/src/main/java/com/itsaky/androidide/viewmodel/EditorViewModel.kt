@@ -22,13 +22,20 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.blankj.utilcode.util.FileUtils
 import com.google.gson.GsonBuilder
 import com.itsaky.androidide.models.OpenedFilesCache
 import com.itsaky.androidide.projects.IProjectManager
-import com.itsaky.androidide.tasks.executeAsync
 import com.itsaky.androidide.utils.Environment
+import com.itsaky.androidide.utils.ILogger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
+import java.util.Collections
 
 /** ViewModel for data used in [com.itsaky.androidide.activities.editor.EditorActivityKt] */
 @Suppress("PropertyName")
@@ -41,17 +48,30 @@ class EditorViewModel : ViewModel() {
   internal val _startDrawerOpened = MutableLiveData(false)
   internal val _isSyncNeeded = MutableLiveData(false)
 
+  internal val _filesModified = MutableLiveData(false)
+  internal val _filesSaving = MutableLiveData(false)
+
   private val _openedFiles = MutableLiveData<OpenedFilesCache>()
   private val _isBoundToBuildService = MutableLiveData(false)
-  private val files = MutableLiveData<MutableList<File>>(ArrayList())
-
-  private val fileModified = MutableLiveData(false)
+  private val _files = MutableLiveData<MutableList<File>>(ArrayList())
 
   /**
    * Holds information about the currently selected editor fragment. First value in the pair is the
    * index of the editor opened. Second value is the file that is opened.
    */
   private val mCurrentFile = MutableLiveData<Pair<Int, File?>?>(null)
+
+  var areFilesModified: Boolean
+    get() = _filesModified.value ?: false
+    set(value) {
+      _filesModified.value = value
+    }
+
+  var areFilesSaving: Boolean
+    get() = _filesSaving.value ?: false
+    set(value) {
+      _filesSaving.value = value
+    }
 
   var openedFilesCache: OpenedFilesCache?
     get() = _openedFiles.value
@@ -107,15 +127,25 @@ class EditorViewModel : ViewModel() {
       _isSyncNeeded.value = value
     }
 
+  internal var files: MutableList<File>
+    get() = this._files.value ?: Collections.emptyList()
+    set(value) {
+      this._files.value = value
+    }
+
+  private inline fun updateFiles(crossinline action: (files: MutableList<File>) -> Unit) {
+    val files = this.files
+    action(files)
+    this.files = files
+  }
+
   /**
    * Add the given file to the list of opened files.
    *
    * @param file The file that has been opened.
    */
-  fun addFile(file: File) {
-    val files = files.value ?: mutableListOf()
+  fun addFile(file: File) = updateFiles { files ->
     files.add(file)
-    this.files.value = files
   }
 
   /**
@@ -123,18 +153,16 @@ class EditorViewModel : ViewModel() {
    *
    * @param index The index of the closed file.
    */
-  fun removeFile(index: Int) {
-    val files = files.value ?: mutableListOf()
+  fun removeFile(index: Int) = updateFiles { files ->
     files.removeAt(index)
-    this.files.value = files
 
-    if (this.files.value?.isEmpty() == true) {
+    if (files.isEmpty()) {
       mCurrentFile.value = null
     }
   }
 
-  fun removeAllFiles() {
-    files.value = mutableListOf()
+  fun removeAllFiles() = updateFiles { files ->
+    files.clear()
     setCurrentFile(-1, null)
   }
 
@@ -143,8 +171,7 @@ class EditorViewModel : ViewModel() {
     mCurrentFile.value = index to file
   }
 
-  fun updateFile(index: Int, newFile: File) {
-    val files = files.value ?: return
+  fun updateFile(index: Int, newFile: File) = updateFiles { files ->
     files[index] = newFile
   }
 
@@ -155,7 +182,7 @@ class EditorViewModel : ViewModel() {
    * @return The file at the given index.
    */
   fun getOpenedFile(index: Int): File {
-    return files.value!![index]
+    return files[index]
   }
 
   /**
@@ -164,7 +191,7 @@ class EditorViewModel : ViewModel() {
    * @return The number of files opened.
    */
   fun getOpenedFileCount(): Int {
-    return files.value!!.size
+    return files.size
   }
 
   /**
@@ -173,7 +200,7 @@ class EditorViewModel : ViewModel() {
    * @return The list of opened files.
    */
   fun getOpenedFiles(): List<File> {
-    return files.value ?: mutableListOf()
+    return Collections.unmodifiableList(files)
   }
 
   /**
@@ -183,7 +210,7 @@ class EditorViewModel : ViewModel() {
    * @param observer The observer.
    */
   fun observeFiles(lifecycleOwner: LifecycleOwner?, observer: Observer<MutableList<File>?>?) {
-    files.observe(lifecycleOwner!!, observer!!)
+    _files.observe(lifecycleOwner!!, observer!!)
   }
 
   fun getCurrentFileIndex(): Int {
@@ -194,45 +221,63 @@ class EditorViewModel : ViewModel() {
     return mCurrentFile.value?.second
   }
 
-  fun setFilesModified(modified: Boolean) {
-    fileModified.value = modified
+  /**
+   * Get the [OpenedFilesCache] if it is already loaded, otherwise read the cache from the file system
+   * and invoke the given callback.
+   *
+   * If the cache is already loaded, [result] is called on the same thread. Otherwise, it is
+   * always called on the main/UI thread.
+   */
+  inline fun getOrReadOpenedFilesCache(crossinline result: (OpenedFilesCache?) -> Unit) {
+    return openedFilesCache?.let(result) ?: run {
+      viewModelScope.launch(Dispatchers.IO) {
+        val cache = try {
+          val cacheFile = getOpenedFilesCache(false)
+          if (cacheFile.exists() && cacheFile.length() > 0L) {
+            cacheFile.bufferedReader().use(OpenedFilesCache::parse)
+          } else null
+        } catch (err: IOException) {
+          // ignore exception
+          null
+        }
+
+        withContext(Dispatchers.Main) {
+          result(cache)
+        }
+      }.also { job ->
+        handleOpenedFilesCacheJobCompletion(job, "read")
+      }
+      Unit
+    }
   }
 
-  fun areFilesModified(): Boolean {
-    val modified = fileModified.value
-    return modified != null && modified
-  }
-
-  fun readOpenedFiles(result: (OpenedFilesCache?) -> Unit) {
-    executeAsync({
-      val file = getOpenedFilesCache(false)
-      if (file.length() == 0L) {
-        return@executeAsync null
+  fun handleOpenedFilesCacheJobCompletion(it: Job, operation: String) {
+    it.invokeOnCompletion { err ->
+      if (err != null) {
+        ILogger.instance().error("[EditorViewModel] Failed to $operation opened files cache", err)
       }
-      return@executeAsync file.reader().buffered().use { reader ->
-        OpenedFilesCache.parse(reader)
-      }
-    }) {
-      result(it)
     }
   }
 
   fun writeOpenedFiles(cache: OpenedFilesCache?) {
-    executeAsync {
-      val file = getOpenedFilesCache()
+    viewModelScope.launch(Dispatchers.IO) {
+      val file = getOpenedFilesCache(true)
 
       if (cache == null) {
         file.delete()
-        return@executeAsync
+        return@launch
       }
 
       val gson = GsonBuilder().setPrettyPrinting().create()
       val string = gson.toJson(cache)
       file.writeText(string)
+    }.also { job ->
+      handleOpenedFilesCacheJobCompletion(job, "write")
     }
   }
 
-  private fun getOpenedFilesCache(forWrite: Boolean = false): File {
+  @PublishedApi
+  internal fun getOpenedFilesCache(forWrite: Boolean = false): File {
     var file = Environment.getProjectCacheDir(IProjectManager.getInstance().projectDir)
     file = File(file, "editor/openedFiles.json")
     if (file.exists() && forWrite) {

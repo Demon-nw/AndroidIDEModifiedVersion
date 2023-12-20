@@ -32,7 +32,6 @@ import com.itsaky.androidide.preferences.internal.DELETE_TABS_ON_BACKSPACE
 import com.itsaky.androidide.preferences.internal.FLAG_PASSWORD
 import com.itsaky.androidide.preferences.internal.FONT_LIGATURES
 import com.itsaky.androidide.preferences.internal.FONT_SIZE
-import com.itsaky.androidide.preferences.internal.HIDE_FILE_TREE_BUTTON
 import com.itsaky.androidide.preferences.internal.PIN_LINE_NUMBERS
 import com.itsaky.androidide.preferences.internal.PRINTABLE_CHARS
 import com.itsaky.androidide.preferences.internal.STICKY_SCROLL_ENABLED
@@ -54,7 +53,6 @@ import com.itsaky.androidide.preferences.internal.drawLineBreak
 import com.itsaky.androidide.preferences.internal.drawTrailingWs
 import com.itsaky.androidide.preferences.internal.fontLigatures
 import com.itsaky.androidide.preferences.internal.fontSize
-import com.itsaky.androidide.preferences.internal.hideFileTreeButton
 import com.itsaky.androidide.preferences.internal.pinLineNumbers
 import com.itsaky.androidide.preferences.internal.stickyScrollEnabled
 import com.itsaky.androidide.preferences.internal.tabSize
@@ -68,6 +66,7 @@ import com.itsaky.androidide.resources.R.drawable
 import com.itsaky.androidide.resources.R.string
 import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize
+import kotlin.reflect.KMutableProperty0
 
 @Parcelize
 class EditorPreferences(
@@ -100,7 +99,6 @@ private class CommonConfigurations(
     addPreference(UseCustomFont())
     addPreference(UseSoftTab())
     addPreference(WordWrap())
-    addPreference(HideFileTreeButton())
     addPreference(UseMagnifier())
     addPreference(UseICU())
     addPreference(AutoSave())
@@ -174,6 +172,7 @@ private class TabSize(
   override val icon: Int? = drawable.ic_font_ligatures,
 ) : SingleChoicePreference() {
 
+  @IgnoredOnParcel
   override val dialogCancellable = true
 
   @IgnoredOnParcel
@@ -208,6 +207,7 @@ private class ColorSchemePreference(
   override val icon: Int? = R.drawable.ic_color_scheme
 ) : SingleChoicePreference() {
 
+  @IgnoredOnParcel
   override val dialogCancellable = true
 
   @IgnoredOnParcel
@@ -232,33 +232,16 @@ private class NonPrintablePaintingFlags(
   override val title: Int = string.idepref_editor_paintingflags_title,
   override val summary: Int? = string.idepref_editor_paintingflags_summary,
   override val icon: Int? = drawable.ic_drawing,
-) : MultiChoicePreference() {
+) : PropertyBasedMultiChoicePreference() {
 
-  override fun getChoices(context: Context): Array<String> {
-    return arrayOf("Leading", "Trailing", "Inner", "Empty lines", "Line breaks")
-  }
-
-  override fun getCheckedItems(): BooleanArray {
-    return booleanArrayOf(
-      drawLeadingWs,
-      drawTrailingWs,
-      drawInnerWs,
-      drawEmptyLineWs,
-      drawLineBreak
+  override fun getProperties(): Map<String, KMutableProperty0<Boolean>> {
+    return linkedMapOf(
+      "Leading" to ::drawLeadingWs,
+      "Trailing" to ::drawTrailingWs,
+      "Inner" to ::drawInnerWs,
+      "Empty lines" to ::drawEmptyLineWs,
+      "Line breaks" to ::drawLineBreak
     )
-  }
-
-  override fun onChoicesConfirmed(selectedPositions: List<Int>) {
-    for (position in selectedPositions) {
-      when (position) {
-        0 -> ::drawLeadingWs
-        1 -> ::drawTrailingWs
-        2 -> ::drawInnerWs
-        3 -> ::drawEmptyLineWs
-        4 -> ::drawLineBreak
-        else -> null
-      }?.set(true)
-    }
   }
 }
 
@@ -269,14 +252,6 @@ private class WordWrap(
   override val summary: Int? = string.idepref_editor_word_wrap_summary,
   override val icon: Int? = drawable.ic_wrap_text,
 ) : SwitchPreference(setValue = ::wordwrap::set, getValue = ::wordwrap::get)
-
-@Parcelize
-private class HideFileTreeButton(
-  override val key: String = HIDE_FILE_TREE_BUTTON,
-  override val title: Int = string.idepref_editor_hide_file_tree_button_title,
-  override val summary: Int? = string.idepref_editor_hide_file_tree_button_summary,
-  override val icon: Int? = drawable.ic_folder,
-) : SwitchPreference(setValue = ::hideFileTreeButton::set, getValue = ::hideFileTreeButton::get)
 
 @Parcelize
 private class UseMagnifier(

@@ -17,6 +17,7 @@
 
 package com.itsaky.androidide.progress
 
+import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -39,9 +40,9 @@ interface ICancelChecker {
   fun isCancelled(): Boolean
 
   /**
-   * Throw [ProcessCancelledException] if this process has been cancelled.
+   * Throw [CancellationException] if this process has been cancelled.
    */
-  @Throws(ProcessCancelledException::class)
+  @Throws(CancellationException::class)
   fun abortIfCancelled()
 
   open class Default(cancelled: Boolean = false) : ICancelChecker {
@@ -58,8 +59,23 @@ interface ICancelChecker {
 
     override fun abortIfCancelled() {
       if (isCancelled()) {
-        throw ProcessCancelledException()
+        throw CancellationException()
       }
     }
+  }
+
+  companion object {
+
+    /**
+     * A no-op cancel checker. The task is never cancelled.
+     */
+    @JvmField
+    val NOOP = Default(false)
+
+    /**
+     * An already cancelled cancel checker.
+     */
+    @JvmField
+    val CANCELLED = Default(true)
   }
 }

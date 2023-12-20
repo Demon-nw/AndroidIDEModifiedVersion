@@ -2,7 +2,7 @@ name: Build and test
 
 on:
   push:
-    branches: [ "dev", "main", "rework-tooling-api" ]
+    branches: [ "dev", "main", "release/**" ]
     paths-ignore:
       - '**.md'
       - 'fastlane/**'
@@ -15,66 +15,43 @@ on:
       - '.github/workflows/crowdin_contributors.yml'
   workflow_dispatch: { }
 
-jobs:
-  build_debug_apk:
-    name: Build Debug APK
-    runs-on: ubuntu-latest
-    if: ${{ github.ref != 'refs/heads/main' }}
-    steps:
-      - name: Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.11.0
-        with:
-          access_token: ${{ github.token }}
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: Change Gradle wrapper permissions
-        run: chmod +x ./gradlew
-      - name: Restore cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-      - name: Assemble Debug
-        run: ./gradlew assembleDebug
-        env:
-          ReleaseAndroidIDE: false
-          IDE_SIGNING_ALIAS: ${{ secrets.IDE_SIGNING_ALIAS }}
-          IDE_SIGNING_AUTH_PASS: ${{ secrets.IDE_SIGNING_AUTH_PASS }}
-          IDE_SIGNING_AUTH_USER: ${{ secrets.IDE_SIGNING_AUTH_USER }}
-          IDE_SIGNING_KEY_PASS: ${{ secrets.IDE_SIGNING_KEY_PASS }}
-          IDE_SIGNING_STORE_PASS: ${{ secrets.IDE_SIGNING_STORE_PASS }}
-          IDE_SIGNING_URL: ${{ secrets.IDE_SIGNING_URL }}
-          IDE_SIGNING_KEY_BIN: ${{ secrets.IDE_SIGNING_KEY_BIN }}
-      - name: Copy debug APK
-        run: cp app/build/outputs/apk/**/debug/*.apk ./
-      - name: Upload arm64-v8a-debug APK
-        uses: actions/upload-artifact@v3
-        with:
-          name: apk-arm64-v8a-debug
-          path: app-arm64-v8a-arm64-v8a-debug.apk
-      - name: Upload armeabi-v7a-debug APK
-        uses: actions/upload-artifact@v3
-        with:
-          name: apk-armeabi-v7a-debug
-          path: app-armeabi-v7a-armeabi-v7a-debug.apk
+env:
+  # Misc
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build_release_apk:
-    name: Build Release APK
+  # Signing info
+  IDE_SIGNING_ALIAS: ${{ secrets.IDE_SIGNING_ALIAS }}
+  IDE_SIGNING_AUTH_PASS: ${{ secrets.IDE_SIGNING_AUTH_PASS }}
+  IDE_SIGNING_AUTH_USER: ${{ secrets.IDE_SIGNING_AUTH_USER }}
+  IDE_SIGNING_KEY_PASS: ${{ secrets.IDE_SIGNING_KEY_PASS }}
+  IDE_SIGNING_STORE_PASS: ${{ secrets.IDE_SIGNING_STORE_PASS }}
+  IDE_SIGNING_URL: ${{ secrets.IDE_SIGNING_URL }}
+  IDE_SIGNING_KEY_BIN: ${{ secrets.IDE_SIGNING_KEY_BIN }}
+
+  # Publishing credentials
+  ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MVN_USERNAME }}
+  ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MVN_PASSWORD }}
+  ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MVN_SIGNING_KEY }}
+  ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.MVN_SIGNING_KEY_ID }}
+  ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MVN_SIGNING_KEY_PASSWORD }}
+
+  # Build configuration
+  BUILD_JAVA_VERSION: '17'
+  BUILD_JAVA_DIST: 'temurin'
+  BUILD_IS_RELEASE: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/**' }}
+  ReleaseAndroidIDE: ${{ github.ref == 'refs/heads/main' }}
+
+jobs:
+  build_apk:
+    strategy:
+      matrix:
+        build_type: ['debug', 'release']
+        flavor: ['arm64-v8a', 'armeabi-v7a', 'x86_64']
+    name: Build APK
     runs-on: ubuntu-latest
     steps:
       - name: Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.11.0
+        uses: styfle/cancel-workflow-action@0.12.0
         with:
           access_token: ${{ github.token }}
       - name: Checkout
@@ -82,10 +59,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: ${{ env.BUILD_JAVA_VERSION }}
+          distribution: ${{ env.BUILD_JAVA_DIST }}
       - name: Change Gradle wrapper permissions
         run: chmod +x ./gradlew
       - name: Restore cache
@@ -97,37 +74,28 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-      - name: Assemble Release
-        run: ./gradlew assembleRelease
-        env:
-          ReleaseAndroidIDE: ${{ github.ref == 'refs/heads/main' }}
-          IDE_SIGNING_ALIAS: ${{ secrets.IDE_SIGNING_ALIAS }}
-          IDE_SIGNING_AUTH_PASS: ${{ secrets.IDE_SIGNING_AUTH_PASS }}
-          IDE_SIGNING_AUTH_USER: ${{ secrets.IDE_SIGNING_AUTH_USER }}
-          IDE_SIGNING_KEY_PASS: ${{ secrets.IDE_SIGNING_KEY_PASS }}
-          IDE_SIGNING_STORE_PASS: ${{ secrets.IDE_SIGNING_STORE_PASS }}
-          IDE_SIGNING_URL: ${{ secrets.IDE_SIGNING_URL }}
-          IDE_SIGNING_KEY_BIN: ${{ secrets.IDE_SIGNING_KEY_BIN }}
-      - name: Copy release APK
-        run: cp app/build/outputs/apk/**/release/*.apk ./
-      - name: Upload arm64-v8a-release APK
+      - name: Assemble ${{ matrix.flavor }} ${{ matrix.build_type }} APK
+        run: |
+          build_type=${{ matrix.build_type }}
+          flavor=${{ matrix.flavor }}
+          ./gradlew :app:assemble${flavor^}${build_type^}
+      - name: Copy ${{ matrix.flavor }} ${{ matrix.build_type }} APK
+        run: |
+          cp app/build/outputs/apk/${{ matrix.flavor }}/${{ matrix.build_type }}/app-${{ matrix.flavor }}-${{ matrix.flavor }}-${{ matrix.build_type }}.apk ./
+      - name: Upload ${{ matrix.flavor }} ${{ matrix.build_type }} APK
         uses: actions/upload-artifact@v3
         with:
-          name: apk-arm64-v8a-release
-          path: app-arm64-v8a-arm64-v8a-release.apk
-      - name: Upload armeabi-v7a-release APK
-        uses: actions/upload-artifact@v3
-        with:
-          name: apk-armeabi-v7a-release
-          path: app-armeabi-v7a-armeabi-v7a-release.apk
-      - name: Upload mappings
+          name: apk-${{ matrix.flavor }}-${{ matrix.build_type }}
+          path: app-${{ matrix.flavor }}-${{ matrix.flavor }}-${{ matrix.build_type }}.apk
+      - name: Upload ${{ matrix.flavor }} ${{ matrix.build_type }} mappings
+        if: ${{ matrix.build_type == 'release' }}
         uses: actions/upload-artifact@v3
         with:
           name: release-mappings
           path: '**/build/outputs/mapping'
 
-  unit_test_debug:
-    name: Run local tests
+  run_unit_tests:
+    name: Run unit tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -135,10 +103,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: ${{ env.BUILD_JAVA_VERSION }}
+          distribution: ${{ env.BUILD_JAVA_DIST }}
       - name: Change Gradle wrapper permissions
         run: chmod +x ./gradlew
       - name: Restore cache
@@ -150,30 +118,18 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-      - name: Run debug tests
+      - name: Run unit tests
         run: ./gradlew runTestsInCI --continue
         env:
           ANDROIDIDE_TEST: true
-          IDE_SIGNING_ALIAS: ${{ secrets.IDE_SIGNING_ALIAS }}
-          IDE_SIGNING_AUTH_PASS: ${{ secrets.IDE_SIGNING_AUTH_PASS }}
-          IDE_SIGNING_AUTH_USER: ${{ secrets.IDE_SIGNING_AUTH_USER }}
-          IDE_SIGNING_KEY_PASS: ${{ secrets.IDE_SIGNING_KEY_PASS }}
-          IDE_SIGNING_STORE_PASS: ${{ secrets.IDE_SIGNING_STORE_PASS }}
-          IDE_SIGNING_URL: ${{ secrets.IDE_SIGNING_URL }}
-          IDE_SIGNING_KEY_BIN: ${{ secrets.IDE_SIGNING_KEY_BIN }}
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MVN_USERNAME }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MVN_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MVN_SIGNING_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.MVN_SIGNING_KEY_ID }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MVN_SIGNING_KEY_PASSWORD }}
-      - name: Upload Test Reports
+      - name: Upload test reports
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
           name: test-results-unit-tests
           path: '**/build/reports/tests/'
 
-  unit_test_tooling_api:
+  run_tooling_api_tests:
     name: Build and test Tooling API
     runs-on: ubuntu-latest
     steps:
@@ -182,10 +138,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: ${{ env.BUILD_JAVA_VERSION }}
+          distribution: ${{ env.BUILD_JAVA_DIST }}
       - name: Change Gradle wrapper permissions
         run: chmod +x ./gradlew
       - name: Restore cache
@@ -197,24 +153,12 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-      - name: Run debug tests
+      - name: Run tooling API tests
         run: ./gradlew :subprojects:tooling-api-impl:build --continue
         env:
           ANDROIDIDE_TEST: true
           TEST_TOOLING_API_IMPL: true
-          IDE_SIGNING_ALIAS: ${{ secrets.IDE_SIGNING_ALIAS }}
-          IDE_SIGNING_AUTH_PASS: ${{ secrets.IDE_SIGNING_AUTH_PASS }}
-          IDE_SIGNING_AUTH_USER: ${{ secrets.IDE_SIGNING_AUTH_USER }}
-          IDE_SIGNING_KEY_PASS: ${{ secrets.IDE_SIGNING_KEY_PASS }}
-          IDE_SIGNING_STORE_PASS: ${{ secrets.IDE_SIGNING_STORE_PASS }}
-          IDE_SIGNING_URL: ${{ secrets.IDE_SIGNING_URL }}
-          IDE_SIGNING_KEY_BIN: ${{ secrets.IDE_SIGNING_KEY_BIN }}
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MVN_USERNAME }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MVN_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MVN_SIGNING_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.MVN_SIGNING_KEY_ID }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MVN_SIGNING_KEY_PASSWORD }}
-      - name: Upload Test Reports
+      - name: Upload test reports
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
@@ -224,22 +168,26 @@ jobs:
   publish:
     name: Publish release
     runs-on: ubuntu-latest
-    needs: [ build_release_apk, unit_test_debug, unit_test_tooling_api ]
-    if: ${{ always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.build_release_apk.result == 'success' && needs.unit_test_debug.result == 'success' && needs.unit_test_tooling_api.result == 'success' }}
+    needs: [ build_apk, run_unit_tests, run_tooling_api_tests ]
+    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.build_apk.result == 'success' && needs.run_unit_tests.result == 'success' && needs.run_tooling_api_tests.result == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: ${{ env.BUILD_JAVA_VERSION }}
+          distribution: ${{ env.BUILD_JAVA_DIST }}
       - name: Download arm64-v8a APK
         uses: actions/download-artifact@v3
         with:
           name: apk-arm64-v8a-release
+      - name: Download x86_64 APK
+        uses: actions/download-artifact@v3
+        with:
+          name: apk-x86_64-release
       - name: Download armeabi-v7a APK
         uses: actions/download-artifact@v3
         with:
@@ -257,14 +205,6 @@ jobs:
             ${{ runner.os }}-gradle-
       - name: Publish release
         run: ./gradlew nyxMake nyxMark nyxPublish publish release --stacktrace
-        env:
-          ReleaseAndroidIDE: true
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MVN_USERNAME }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MVN_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MVN_SIGNING_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.MVN_SIGNING_KEY_ID }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MVN_SIGNING_KEY_PASSWORD }}
       - name: Archive Nyx state file
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
@@ -275,18 +215,18 @@ jobs:
   publish_snapshots:
     name: Publish package snapshots
     runs-on: ubuntu-latest
-    needs: [ build_debug_apk ]
-    if: ${{ always() && github.ref != 'refs/heads/main' && github.event_name != 'pull_request' && needs.build_debug_apk.result == 'success' }}
+    needs: [ build_apk ]
+    if: ${{ always() && github.ref != 'refs/heads/main' && github.event_name != 'pull_request' && needs.build_apk.result == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: ${{ env.BUILD_JAVA_VERSION }}
+          distribution: ${{ env.BUILD_JAVA_DIST }}
       - name: Change Gradle wrapper permissions
         run: chmod +x ./gradlew
       - name: Restore cache
@@ -300,10 +240,3 @@ jobs:
             ${{ runner.os }}-gradle-
       - name: Publish snapshots
         run: ./gradlew publishAllPublicationsToMavenCentralRepository --stacktrace
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MVN_USERNAME }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MVN_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MVN_SIGNING_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.MVN_SIGNING_KEY_ID }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MVN_SIGNING_KEY_PASSWORD }}

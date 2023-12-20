@@ -7,7 +7,6 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 pluginManagement {
   includeBuild("build-logic")
   repositories {
-    mavenCentral()
     gradlePluginPortal()
     google()
     mavenCentral()
@@ -51,7 +50,6 @@ include(
   ":editor",
   ":editor-api",
   ":editor-treesitter",
-  ":emulatorview",
   ":eventbus",
   ":eventbus-android",
   ":eventbus-events",
@@ -97,6 +95,10 @@ include(
   ":subprojects:tooling-api-model",
   ":subprojects:xml-dom",
   ":subprojects:xml-utils",
+  ":termux:termux-app",
+  ":termux:termux-emulator",
+  ":termux:termux-shared",
+  ":termux:termux-view",
   ":testing:android",
   ":testing:lsp",
   ":testing:tooling",

@@ -18,7 +18,7 @@
           <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.google.errorprone/error_prone_annotations/2.18.0/89b684257096f548fa39a7df9fdaa409d4d4df91/error_prone_annotations-2.18.0.jar" />
           <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.google.j2objc/j2objc-annotations/2.8/c85270e307e7b822f1086b93689124b89768e273/j2objc-annotations-2.8.jar" />
         </processorPath>
-        <module name="ide.AndroidIDE.annotation-processors.main" />
+        <module name="AndroidIDE.annotation-processors.main" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="1.8">
@@ -102,6 +102,7 @@
       <module name="AndroidIDE.colorschemes" target="11" />
       <module name="AndroidIDE.colorschemes.main" target="11" />
       <module name="AndroidIDE.editor-languages" target="11" />
+      <module name="AndroidIDE.emulatorview" target="17" />
       <module name="AndroidIDE.google-java-format" target="1.8" />
       <module name="AndroidIDE.gradle-tooling" target="1.8" />
       <module name="AndroidIDE.gradle-tooling.plugin" target="1.8" />

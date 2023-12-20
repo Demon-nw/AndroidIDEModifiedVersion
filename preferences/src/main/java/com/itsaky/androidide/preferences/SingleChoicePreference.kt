@@ -20,6 +20,7 @@ package com.itsaky.androidide.preferences
 import android.content.Context
 import androidx.preference.Preference
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import java.lang.IndexOutOfBoundsException
 
 /**
  * A preference which allows selecting a single value from a list of values.
@@ -44,15 +45,26 @@ abstract class SingleChoicePreference : ChoiceBasedDialogPreference(), Preferenc
    */
   abstract fun getInitiallySelectionItemPosition(context: Context): Int
 
+  final override fun getCheckedItems(choices: Array<String>): BooleanArray? {
+    return null
+  }
+
   override fun onConfigureDialogChoices(
     preference: Preference,
     dialog: MaterialAlertDialogBuilder,
-    choices: Array<String>
+    choices: Array<String>,
+    checkedItems: BooleanArray?
   ) {
 
+    this.currentSelection = getInitiallySelectionItemPosition(preference.context)
+    if (currentSelection < 0 || currentSelection >= choices.size) {
+      throw IndexOutOfBoundsException("Initial selection: $currentSelection, size=${choices.size}")
+    }
+
     dialog.setSingleChoiceItems(
-      getChoices(preference.context),
-      getInitiallySelectionItemPosition(preference.context))
+      choices,
+      currentSelection
+    )
     { _, position ->
 
       if (currentSelection != -1) {
@@ -64,8 +76,11 @@ abstract class SingleChoicePreference : ChoiceBasedDialogPreference(), Preferenc
     }
   }
 
-  final override fun onChoicesConfirmed(selectedPositions: List<Int>) {
-    selectedPositions.firstOrNull()?.let { onChoiceConfirmed(it) }
+  final override fun onChoicesConfirmed(
+    selectedPositions: IntArray,
+    selections: Map<String, Boolean>
+  ) {
+    onChoiceConfirmed(currentSelection)
   }
 
   protected open fun onChoiceConfirmed(position: Int) {}

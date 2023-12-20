@@ -1,9 +1,6 @@
 @file:Suppress("UnstableApiUsage")
 
-import androidx.navigation.safe.args.generator.ext.capitalize
-import com.android.build.gradle.BaseExtension
-import java.util.Base64
-import java.util.Locale
+import com.itsaky.androidide.plugins.AndroidIDEAssetsPlugin
 
 plugins {
   id("com.android.application")
@@ -12,6 +9,10 @@ plugins {
   id("kotlin-parcelize")
   id("com.google.android.gms.oss-licenses-plugin")
   id("androidx.navigation.safeargs.kotlin")
+}
+
+apply {
+  plugin(AndroidIDEAssetsPlugin::class.java)
 }
 
 android {
@@ -24,33 +25,6 @@ android {
 
   androidResources {
     generateLocaleConfig = true
-  }
-
-  compileOptions { isCoreLibraryDesugaringEnabled = true }
-
-  downloadSigningKey()
-
-  // Keystore credentials
-  val alias = getEnvOrProp(KEY_ALIAS)
-  val storePass = getEnvOrProp(KEY_STORE_PASS)
-  val keyPass = getEnvOrProp(KEY_PASS)
-
-  if (alias != null && storePass != null && keyPass != null && signingKey.exists()) {
-    signingConfigs.create("common") {
-      storeFile = signingKey
-      keyAlias = alias
-      storePassword = storePass
-      keyPassword = keyPass
-    }
-
-    buildTypes {
-      debug { signingConfig = signingConfigs.getByName("common") }
-      release { signingConfig = signingConfigs.getByName("common") }
-    }
-  } else {
-    logger.warn(
-      "Signing info not configured. keystoreFile=$signingKey[exists=${signingKey.exists()}]"
-    )
   }
 
   buildTypes { release { isShrinkResources = true } }
@@ -126,7 +100,7 @@ dependencies {
   implementation(libs.google.oss.licenses)
 
   // Kotlin
-  implementation(libs.androidx.ktx)
+  implementation(libs.androidx.core.ktx)
   implementation(libs.common.kotlin)
 
   // Local projects here
@@ -134,7 +108,10 @@ dependencies {
   implementation(projects.buildInfo)
   implementation(projects.common)
   implementation(projects.editor)
-  implementation(projects.emulatorview)
+  implementation(projects.termux.termuxApp)
+  implementation(projects.termux.termuxView)
+  implementation(projects.termux.termuxEmulator)
+  implementation(projects.termux.termuxShared)
   implementation(projects.eventbus)
   implementation(projects.eventbusAndroid)
   implementation(projects.eventbusEvents)
@@ -160,113 +137,10 @@ dependencies {
   implementation(projects.uidesigner)
   implementation(projects.xmlInflater)
 
-  coreLibraryDesugaring(libs.androidx.lib.desugaring)
-
   // This is to build the tooling-api-impl project before the app is built
   // So we always copy the latest JAR file to assets
   compileOnly(projects.subprojects.toolingApiImpl)
 
   testImplementation(projects.testing.unit)
   androidTestImplementation(projects.testing.android)
-}
-
-fun downloadSigningKey() {
-  if (signingKey.exists()) {
-    logger.info("Skipping download as ${signingKey.name} file already exists.")
-    return
-  }
-
-  getEnvOrProp(KEY_BIN)?.let { bin ->
-    val contents = Base64.getDecoder().decode(bin)
-    signingKey.writeBytes(contents)
-    return
-  }
-
-  // URL to download the signing key
-  val url = getEnvOrProp(KEY_URL) ?: return
-
-  // Username and password required to download the keystore
-  val user = getEnvOrProp(AUTH_USER) ?: return
-  val pass = getEnvOrProp(AUTH_PASS) ?: return
-
-  logger.info("Downloading signing key...")
-  val result = exec {
-    workingDir(rootProject.projectDir)
-    commandLine("bash", "./.tools/download_key.sh", signingKey.absolutePath, url, user, pass)
-  }
-
-  result.assertNormalExitValue()
-}
-
-fun getEnvOrProp(key: String): String? {
-  var value: String? = System.getenv(key)
-  if (value.isNullOrBlank()) {
-    value = project.properties[key] as? String?
-  }
-  if (value.isNullOrBlank()) {
-    logger.warn("$key is not set. Debug key will be used to sign the APK")
-    return null
-  }
-  return value
-}
-
-tasks.create("generateInitScript") {
-  val out = file("src/main/assets/data/common/androidide.init.gradle")
-
-  if (out.exists()) {
-    out.delete()
-  }
-
-  doLast {
-    out.bufferedWriter().use {
-
-      it.write(
-        """
-      initscript {
-          repositories {
-              
-              // Always specify the snapshots repository first
-              maven {
-                  // Add snapshots repository for AndroidIDE CI builds
-                  url "${VersionUtils.SNAPSHOTS_REPO}"
-              }
-              
-              mavenCentral()
-              google()
-          }
-
-          dependencies {
-              classpath '${BuildConfig.packageName}:gradle-plugin:$downloadVersion'
-          }
-      }
-      
-      apply plugin: com.itsaky.androidide.gradle.AndroidIDEInitScriptPlugin
-    """
-          .trimIndent()
-      )
-    }
-  }
-}
-
-afterEvaluate {
-  extensions.getByType<BaseExtension>().apply {
-    val flavorNames = productFlavors.map { it.name.capitalize(Locale.getDefault()) }
-    val dependents =
-      listOf(
-        "merge@@DebugAssets",
-        "merge@@ReleaseAssets",
-        "lintAnalyze@@Debug",
-        "lintAnalyze@@Release",
-        "lintVitalAnalyze@@Release"
-      )
-
-    for (dependent in dependents) {
-      for (flavorName in flavorNames) {
-        tasks.getByName(dependent.replace("@@", flavorName)).apply {
-          dependsOn(":subprojects:tooling-api-impl:copyJarToAssets")
-          dependsOn("generateInitScript")
-        }
-      }
-    }
-  }
 }

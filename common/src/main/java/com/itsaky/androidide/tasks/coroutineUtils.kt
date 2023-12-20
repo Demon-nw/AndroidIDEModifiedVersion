@@ -31,6 +31,20 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
 /**
+ * An [ICancelChecker] which when cancelled, cancels the corresponding [Job].
+ */
+class JobCancelChecker @JvmOverloads constructor(
+  var job: Job? = null
+) : ICancelChecker.Default() {
+
+  override fun cancel() {
+    job?.cancel("Cancelled by user")
+    job = null
+    super.cancel()
+  }
+}
+
+/**
  * Calls [CoroutineScope.cancel] only if a job is active in the scope.
  *
  * @param message Optional message describing the cause of the cancellation.
@@ -61,26 +75,18 @@ fun CoroutineScope.cancelIfActive(exception: CancellationException? = null) {
  * @param action The action to be executed.
  * @see CoroutineScope.launch
  */
-fun CoroutineScope.launchAsyncWithProgress(
+inline fun CoroutineScope.launchAsyncWithProgress(
   context: CoroutineContext = EmptyCoroutineContext,
   start: CoroutineStart = CoroutineStart.DEFAULT,
-  configureFlashbar: ((Flashbar.Builder, ICancelChecker) -> Unit)? = null,
-  invokeOnCompletion: ((Throwable?) -> Unit)? = null,
-  action: suspend CoroutineScope.(flashbar: Flashbar, cancelChecker: ICancelChecker) -> Unit
+  crossinline configureFlashbar: (Flashbar.Builder, ICancelChecker) -> Unit = { _, _ -> },
+  crossinline invokeOnCompletion: (Throwable?) -> Unit = {},
+  crossinline action: suspend CoroutineScope.(flashbar: Flashbar, cancelChecker: ICancelChecker) -> Unit
 ): Job? {
 
-  val cancelChecker = object : ICancelChecker.Default() {
-    var job: Job? = null
-
-    override fun cancel() {
-      job?.cancel("Cancelled by user")
-      job = null
-      super.cancel()
-    }
-  }
+  val cancelChecker = JobCancelChecker()
 
   return flashProgress({
-    configureFlashbar?.invoke(this, cancelChecker)
+    configureFlashbar(this, cancelChecker)
   }) { flashbar ->
     return@flashProgress launch(context = context, start = start) {
       cancelChecker.job = coroutineContext[Job]
@@ -88,7 +94,7 @@ fun CoroutineScope.launchAsyncWithProgress(
     }.also { job ->
       job.invokeOnCompletion { throwable ->
         runOnUiThread { flashbar.dismiss() }
-        invokeOnCompletion?.invoke(throwable)
+        invokeOnCompletion(throwable)
       }
     }
   }

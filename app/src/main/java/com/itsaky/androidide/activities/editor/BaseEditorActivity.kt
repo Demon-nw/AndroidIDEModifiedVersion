@@ -69,8 +69,8 @@ import com.itsaky.androidide.preferences.internal.launchAppAfterInstall
 import com.itsaky.androidide.projects.IProjectManager
 import com.itsaky.androidide.projects.ProjectManagerImpl
 import com.itsaky.androidide.tasks.cancelIfActive
-import com.itsaky.androidide.ui.ContentTranslatingDrawerLayout
 import com.itsaky.androidide.ui.CodeEditorView
+import com.itsaky.androidide.ui.ContentTranslatingDrawerLayout
 import com.itsaky.androidide.uidesigner.UIDesignerActivity
 import com.itsaky.androidide.utils.ActionMenuUtils.createMenu
 import com.itsaky.androidide.utils.ApkInstallationSessionCallback
@@ -109,17 +109,21 @@ abstract class BaseEditorActivity :
   protected val log: ILogger = ILogger.newInstance("EditorActivity")
 
   /**
-   * [CoroutineScope] for executing tasks in the background.
+   * Editor activity's [CoroutineScope] for executing tasks in the background.
    */
-  protected val activityBackroundScope = CoroutineScope(Dispatchers.Default)
+  protected val editorActivityScope = CoroutineScope(Dispatchers.Default)
 
   internal var installationCallback: ApkInstallationSessionCallback? = null
 
   var uiDesignerResultLauncher: ActivityResultLauncher<Intent>? = null
   val editorViewModel by viewModels<EditorViewModel>()
 
-  lateinit var binding: ActivityEditorBinding
-    protected set
+  private var _binding: ActivityEditorBinding? = null
+  val binding: ActivityEditorBinding
+    get() = checkNotNull(_binding) { "Activity has been destroyed" }
+
+  override val subscribeToEvents: Boolean
+    get() = true
 
   private val onBackPressedCallback: OnBackPressedCallback =
     object : OnBackPressedCallback(true) {
@@ -158,6 +162,8 @@ abstract class BaseEditorActivity :
   internal abstract fun doConfirmProjectClose()
 
   protected open fun preDestroy() {
+    _binding = null
+
     optionsMenuInvalidator?.also {
       ThreadUtils.getMainHandler().removeCallbacks(it)
     }
@@ -168,7 +174,7 @@ abstract class BaseEditorActivity :
     installationCallback = null
 
     if (isDestroying) {
-      activityBackroundScope.cancelIfActive("Activity is being destroyed")
+      editorActivityScope.cancelIfActive("Activity is being destroyed")
     }
   }
 
@@ -182,7 +188,7 @@ abstract class BaseEditorActivity :
   }
 
   override fun bindLayout(): View {
-    this.binding = ActivityEditorBinding.inflate(layoutInflater)
+    this._binding = ActivityEditorBinding.inflate(layoutInflater)
     this.diagnosticInfoBinding = this.binding.diagnosticInfo
     return this.binding.root
   }
@@ -387,6 +393,14 @@ abstract class BaseEditorActivity :
     editorViewModel.statusGravity = gravity
   }
 
+  fun refreshSymbolInput() {
+    provideCurrentEditor()?.also { refreshSymbolInput(it) }
+  }
+
+  fun refreshSymbolInput(editor: CodeEditorView) {
+    binding.bottomSheet.refreshSymbolInput(editor)
+  }
+
   private fun checkIsDestroying() {
     if (!isDestroying && isFinishing) {
       isDestroying = true
@@ -457,6 +471,8 @@ abstract class BaseEditorActivity :
           viewContainer.displayedChild = 0
         }
       }
+
+      invalidateOptionsMenu()
     }
 
     setupNoEditorView()
@@ -553,10 +569,6 @@ abstract class BaseEditorActivity :
       viewContainer.viewTreeObserver.addOnGlobalLayoutListener(observer)
       bottomSheet.setOffsetAnchor(editorToolbar)
     }
-  }
-
-  private fun refreshSymbolInput(editor: CodeEditorView) {
-    binding.bottomSheet.refreshSymbolInput(editor)
   }
 
   private fun setupDiagnosticInfo() {

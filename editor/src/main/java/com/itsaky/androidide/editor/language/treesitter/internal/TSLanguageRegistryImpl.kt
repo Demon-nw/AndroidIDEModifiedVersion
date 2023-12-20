@@ -42,12 +42,16 @@ class TSLanguageRegistryImpl : TSLanguageRegistry {
     }
   }
 
+  override fun hasLanguage(fileType: String): Boolean {
+    return registry.containsKey(fileType)
+  }
+
   @Suppress("UNCHECKED_CAST")
   override fun <T : TreeSitterLanguage> getFactory(
     fileType: String
   ): TreeSitterLanguage.Factory<T> {
     return (registry[fileType] ?: throw TSLanguageRegistry.NotRegisteredException(fileType))
-      as TreeSitterLanguage.Factory<T>
+        as TreeSitterLanguage.Factory<T>
   }
 
   override fun destroy() {

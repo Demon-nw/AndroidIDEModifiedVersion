@@ -17,11 +17,17 @@
 
 package com.itsaky.androidide.lsp.models
 
+import com.itsaky.androidide.lsp.CancellableRequestParams
 import com.itsaky.androidide.models.Location
 import com.itsaky.androidide.models.Position
+import com.itsaky.androidide.progress.ICancelChecker
 import java.nio.file.Path
 
 /** @author Akash Yadav */
-data class DefinitionParams(var file: Path, var position: Position)
+data class DefinitionParams(
+  var file: Path,
+  var position: Position,
+  override val cancelChecker: ICancelChecker
+) : CancellableRequestParams
 
 data class DefinitionResult(var locations: List<Location>)

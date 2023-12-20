@@ -30,8 +30,11 @@ fun IDEColorScheme.parseEditorScheme(reader: JsonReader, resolveFileRef: (String
   val newReader = if (reader.peek() == STRING) {
     readerForFileRef(reader, "editor", resolveFileRef)
   } else reader
-  EditorSchemeParser(newReader).parse(this).also {
-    if (reader != newReader) {
+
+  try {
+    EditorSchemeParser(newReader).parse(this)
+  } finally {
+    if (reader !== newReader) {
       newReader.close()
     }
   }
@@ -47,7 +50,7 @@ fun IDEColorScheme.parseColorValue(value: String?, colorId: Boolean = true): Int
     val refName = value.substring(1)
     val refValue =
       definitions[refName] ?: throw ParseException("Referenced color '$value' not found")
-    return if (colorId) refValue else colorIds.get(refValue)
+    return if (colorId) refValue else colorIds.getOrDefault(refValue, 0)
   }
 
   if (value[0] == '#') {
@@ -93,8 +96,10 @@ fun IDEColorScheme.parseLanguage(
       readerForFileRef(reader, "language", resolveFileRef)
     } else reader
 
-  return LanguageParser(newReader).parseLang(this).also {
-    if (reader != newReader) {
+  return try {
+    LanguageParser(newReader).parseLang(this)
+  } finally {
+    if (reader !== newReader) {
       newReader.close()
     }
   }

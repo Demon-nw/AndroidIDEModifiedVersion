@@ -18,20 +18,24 @@
 package com.itsaky.androidide.editor.schemes
 
 import android.content.Context
+import androidx.annotation.WorkerThread
 import com.itsaky.androidide.eventbus.events.editor.ColorSchemeInvalidatedEvent
 import com.itsaky.androidide.preferences.internal.DEFAULT_COLOR_SCHEME
 import com.itsaky.androidide.preferences.internal.colorScheme
 import com.itsaky.androidide.syntax.colorschemes.SchemeAndroidIDE
-import com.itsaky.androidide.tasks.executeAsyncProvideError
 import com.itsaky.androidide.utils.Environment
 import com.itsaky.androidide.utils.ILogger
 import com.itsaky.androidide.utils.isSystemInDarkMode
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.greenrobot.eventbus.EventBus
 import java.io.File
 import java.io.FileFilter
 import java.util.Properties
 import java.util.concurrent.ConcurrentHashMap
-import java.util.function.Consumer
+import kotlin.coroutines.CoroutineContext
 
 /** @author Akash Yadav */
 object IDEColorSchemeProvider {
@@ -46,22 +50,49 @@ object IDEColorSchemeProvider {
   private const val SCHEME_IS_DARK = "scheme.isDark"
   private const val SCHEME_FILE = "scheme.file"
 
-  var defaultScheme: IDEColorScheme? = null
-    get() {
-      return field ?: getColorScheme(DEFAULT_COLOR_SCHEME).also { field = it }
-    }
-    private set
+  private var isDefaultSchemeLoaded = false
+  private var isCurrentSchemeLoaded = false
 
-  var currentScheme: IDEColorScheme? = null
+  /**
+   * The default color scheme.
+   *
+   * This property must not be accessed from the main thread as we may need to perform
+   * I/O operations if the scheme isn't loaded yet.
+   */
+  private var defaultScheme: IDEColorScheme? = null
     get() {
-      return field ?: getColorScheme(colorScheme).also { field = it }
+      return field ?: getColorScheme(DEFAULT_COLOR_SCHEME).also { scheme ->
+        field = scheme
+        isDefaultSchemeLoaded = scheme != null
+      }
     }
-    private set
 
+  /**
+   * The current color scheme.
+   *
+   * This property must not be accessed from the main thread as we may need to perform
+   * I/O operations if the scheme isn't loaded yet.
+   */
+  private var currentScheme: IDEColorScheme? = null
+    get() {
+      return field ?: getColorScheme(colorScheme).also { scheme ->
+        field = scheme
+        isCurrentSchemeLoaded = scheme != null
+      }
+    }
+
+  /**
+   * Get the color scheme with the given [name]. This reads the color schemes
+   * from file system if the scheme isn't loaded yet.
+   */
+  @WorkerThread
   private fun getColorScheme(name: String): IDEColorScheme? {
     return schemes[name]?.also(this::loadColorScheme)
   }
 
+  /**
+   * Loads the given [color scheme][scheme], then returns the same [scheme].
+   */
   private fun loadColorScheme(scheme: IDEColorScheme): IDEColorScheme? {
     return try {
       scheme.load()
@@ -73,7 +104,12 @@ object IDEColorSchemeProvider {
     }
   }
 
+  /**
+   * Initialize the color schemes. This lists the available color schemes
+   * (by reading the `scheme.prop` file), but does not load them.
+   */
   @JvmStatic
+  @WorkerThread
   fun init() {
     val schemeDirs =
       schemesDir.listFiles(FileFilter { it.isDirectory && File(it, "scheme.prop").exists() })
@@ -126,6 +162,11 @@ object IDEColorSchemeProvider {
     }
   }
 
+  /**
+   * Initializes the color schemes if the no color schemes are available.
+   *
+   * @see init
+   */
   @JvmStatic
   fun initIfNeeded() {
     if (this.schemes.isEmpty()) {
@@ -133,31 +174,84 @@ object IDEColorSchemeProvider {
     }
   }
 
+  /**
+   * Reads the current color scheme asynchronously from file system if it is not already loaded,
+   * then invokes the [callback].
+   *
+   * @param context Context used to determine whether the system is in dark mode.
+   * @param coroutineScope The scope used to read the scheme asynchronously.
+   * @param callback The callback to receive the [SchemeAndroidIDE] instance.
+   * @see readScheme
+   */
   @JvmOverloads
-  fun readScheme(context: Context, type: String? = null, schemeConsumer: Consumer<SchemeAndroidIDE?>) {
-    readScheme(context, type) {
-      schemeConsumer.accept(it)
+  fun readSchemeAsync(
+    context: Context,
+    coroutineScope: CoroutineScope,
+    type: String? = null,
+    callbackContext: CoroutineContext = Dispatchers.Main.immediate,
+    callback: (SchemeAndroidIDE?) -> Unit
+  ) {
+
+    // If the scheme has already been loaded, do not bother to dispatch an IO coroutine
+    // simply invoke the callback on the requested context providing the already loaded scheme
+    val loadedScheme = if (isCurrentSchemeLoaded && (type == null || currentScheme?.getLanguageScheme(
+        type) != null)
+    ) {
+      currentScheme
+    } else if (isDefaultSchemeLoaded) {
+      defaultScheme
+    } else {
+      null
+    }
+
+    if (loadedScheme != null) {
+      coroutineScope.launch(callbackContext) {
+        callback(readScheme(context, type))
+      }
+      return
+    }
+
+    // scheme has not been loaded
+    // load the scheme using the IO dispatcher
+    coroutineScope.launch(Dispatchers.IO) {
+      val scheme = readScheme(context, type)
+      withContext(callbackContext) {
+        callback(scheme)
+      }
     }
   }
 
+  /**
+   * Reads the current color scheme synchronously.
+   *
+   * @see readSchemeAsync
+   */
   @JvmOverloads
-  fun readScheme(context: Context, type: String? = null, consume: (SchemeAndroidIDE?) -> Unit) {
-    executeAsyncProvideError({ getColorSchemeForType(type) }) { scheme, error ->
-      if (scheme == null || error != null) {
-        log.error("Failed to read color scheme", error)
-        return@executeAsyncProvideError
-      }
-
-      val dark = scheme.darkVariant
-      if (context.isSystemInDarkMode() && dark != null) {
-        consume(dark)
-      } else {
-        consume(scheme)
-      }
+  @WorkerThread
+  fun readScheme(
+    context: Context,
+    type: String? = null
+  ): SchemeAndroidIDE? {
+    val scheme = getColorSchemeForType(type)
+    if (scheme == null) {
+      log.error("Failed to read color scheme")
+      return null
     }
+
+    val dark = scheme.darkVariant
+    if (context.isSystemInDarkMode() && dark != null) {
+      return dark
+    }
+
+    return scheme
   }
 
-  fun getColorSchemeForType(type: String?) : IDEColorScheme? {
+  /**
+   * Get the color scheme for the given [file type][type]. If the current color scheme does not
+   * support the given file type, the [default color scheme][defaultScheme] is returned.
+   */
+  @WorkerThread
+  fun getColorSchemeForType(type: String?): IDEColorScheme? {
     if (type == null) {
       return currentScheme
     }
@@ -173,18 +267,29 @@ object IDEColorSchemeProvider {
     } ?: defaultScheme
   }
 
+  /**
+   * Get all available color schemes. The returned list does not include the `-dark` variant of
+   * the color schemes.
+   */
   fun list(): List<IDEColorScheme> {
     // filter out schemes that are dark variants of other schemes
     // schemes with both light and dark variant will be used according to system's dark mode
     return this.schemes.values.filter { !it.key.endsWith("-dark") }.toList()
   }
 
+  /**
+   * Destroy the loaded color schemes.
+   */
   fun destroy() {
     this.schemes.clear()
     this.currentScheme = null
+    this.isCurrentSchemeLoaded = false
+
     this.defaultScheme = null
+    this.isDefaultSchemeLoaded = false
   }
 
+  @WorkerThread
   fun reload() {
     destroy()
     init()

@@ -32,14 +32,13 @@ import com.itsaky.androidide.utils.ILogger
 
 /** @author Akash Yadav */
 class VariableToStatementAction : BaseJavaCodeAction() {
-  override val id: String = "lsp_java_variableToStatement"
+  override val id: String = "ide.editor.lsp.java.diagnostics.variableToStatement"
   override var label: String = ""
   private val diagnosticCode = DiagnosticCode.UNUSED_LOCAL.id
   private val log = ILogger.newInstance(javaClass.simpleName)
 
   override val titleTextRes: Int = R.string.action_convert_to_statement
 
-  @Suppress("UNCHECKED_CAST")
   override fun prepare(data: ActionData) {
     super.prepare(data)
 

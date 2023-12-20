@@ -37,6 +37,7 @@ import com.itsaky.androidide.handlers.LspHandler.connectClient
 import com.itsaky.androidide.handlers.LspHandler.destroyLanguageServers
 import com.itsaky.androidide.lookup.Lookup
 import com.itsaky.androidide.lsp.IDELanguageClientImpl
+import com.itsaky.androidide.lsp.java.utils.CancelChecker
 import com.itsaky.androidide.preferences.internal.NO_OPENED_PROJECT
 import com.itsaky.androidide.preferences.internal.lastOpenedProject
 import com.itsaky.androidide.projects.ProjectManagerImpl
@@ -50,6 +51,10 @@ import com.itsaky.androidide.tasks.executeWithProgress
 import com.itsaky.androidide.tooling.api.messages.AndroidInitializationParams
 import com.itsaky.androidide.tooling.api.messages.InitializeProjectParams
 import com.itsaky.androidide.tooling.api.messages.result.InitializeResult
+import com.itsaky.androidide.tooling.api.messages.result.TaskExecutionResult
+import com.itsaky.androidide.tooling.api.messages.result.TaskExecutionResult.Failure.PROJECT_DIRECTORY_INACCESSIBLE
+import com.itsaky.androidide.tooling.api.messages.result.TaskExecutionResult.Failure.PROJECT_NOT_DIRECTORY
+import com.itsaky.androidide.tooling.api.messages.result.TaskExecutionResult.Failure.PROJECT_NOT_FOUND
 import com.itsaky.androidide.tooling.api.models.BuildVariantInfo
 import com.itsaky.androidide.tooling.api.models.mapToSelectedVariants
 import com.itsaky.androidide.utils.DURATION_INDEFINITE
@@ -392,9 +397,12 @@ abstract class ProjectHandlerActivity : BaseEditorActivity() {
       releaseServerListener()
 
       if (result == null || !result.isSuccessful || error != null) {
-        log.error("An error occurred initializing the project with Tooling API", error)
+        if (!CancelChecker.isCancelled(error)) {
+          log.error("An error occurred initializing the project with Tooling API", error)
+        }
+
         ThreadUtils.runOnUiThread {
-          postProjectInit(false)
+          postProjectInit(false, result?.failure)
         }
         return@whenCompleteAsync
       }
@@ -459,12 +467,14 @@ abstract class ProjectHandlerActivity : BaseEditorActivity() {
     }
 
     manager.cachedInitResult = result
-    activityBackroundScope.launch(Dispatchers.IO) {
+    editorActivityScope.launch(Dispatchers.IO) {
       manager.setupProject()
       manager.notifyProjectUpdate()
       updateBuildVariants(manager.androidBuildVariants)
 
-      com.itsaky.androidide.tasks.runOnUiThread { postProjectInit(true) }
+      com.itsaky.androidide.tasks.runOnUiThread {
+        postProjectInit(true, null)
+      }
     }
   }
 
@@ -473,11 +483,23 @@ abstract class ProjectHandlerActivity : BaseEditorActivity() {
     editorViewModel.isInitializing = true
   }
 
-  protected open fun postProjectInit(isSuccessful: Boolean) {
+  protected open fun postProjectInit(isSuccessful: Boolean, failure: TaskExecutionResult.Failure?) {
     val manager = ProjectManagerImpl.getInstance()
     if (!isSuccessful) {
-      setStatus(getString(string.msg_project_initialization_failed))
-      flashError(string.msg_project_initialization_failed)
+      val initFailed = getString(string.msg_project_initialization_failed)
+      setStatus(initFailed)
+
+      val msg = when(failure) {
+        PROJECT_DIRECTORY_INACCESSIBLE -> string.msg_project_dir_inaccessible
+        PROJECT_NOT_DIRECTORY -> string.msg_file_is_not_dir
+        PROJECT_NOT_FOUND -> string.msg_project_dir_doesnt_exist
+        else -> null
+      }?.let {
+        "$initFailed: ${getString(it)}"
+      }
+
+      flashError(msg ?: initFailed)
+
       editorViewModel.isInitializing = false
       manager.projectInitialized = false
       return

@@ -28,6 +28,7 @@ import com.itsaky.androidide.tooling.api.IProject
 import com.itsaky.androidide.tooling.api.IToolingApiServer
 import com.itsaky.androidide.tooling.api.ProjectType
 import com.itsaky.androidide.tooling.api.messages.TaskExecutionMessage
+import com.itsaky.androidide.tooling.api.messages.result.TaskExecutionResult
 import com.itsaky.androidide.tooling.api.models.AndroidProjectMetadata
 import com.itsaky.androidide.tooling.api.models.JavaModuleExternalDependency
 import com.itsaky.androidide.tooling.api.models.JavaModuleProjectDependency
@@ -35,13 +36,21 @@ import com.itsaky.androidide.tooling.api.models.JavaProjectMetadata
 import com.itsaky.androidide.tooling.api.models.params.StringParameter
 import com.itsaky.androidide.tooling.events.ProgressEvent
 import com.itsaky.androidide.tooling.events.task.TaskStartEvent
+import com.itsaky.androidide.tooling.api.util.ToolingProps
 import com.itsaky.androidide.tooling.testing.ToolingApiTestLauncher
 import com.itsaky.androidide.tooling.testing.ToolingApiTestLauncher.MultiVersionTestClient
+import com.itsaky.androidide.utils.AndroidPluginVersion
+import com.itsaky.androidide.utils.FileProvider
 import com.itsaky.androidide.utils.ILogger
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
+import java.nio.file.Paths
 import java.util.concurrent.CompletableFuture
+import kotlin.io.path.createDirectory
+import kotlin.io.path.createFile
+import kotlin.io.path.deleteIfExists
+import kotlin.io.path.exists
 
 /** @author Akash Yadav */
 @RunWith(JUnit4::class)
@@ -52,6 +61,27 @@ class MultiModuleAndroidProjectTest {
     val (server, project, result) = ToolingApiTestLauncher().launchServer()
     assertThat(result?.isSuccessful).isTrue()
     doAssertions(project, server)
+  }
+
+  @Test
+  fun `test non-existing project initialization`() {
+    val (_, _, result) = ToolingApiTestLauncher().launchServer(
+      projectDir = Paths.get("/directory/does/not/exist/"))
+    assertThat(result?.isSuccessful).isFalse()
+    assertThat(result?.failure).isEqualTo(TaskExecutionResult.Failure.PROJECT_NOT_FOUND)
+  }
+
+  @Test
+  fun `test project initialization with file path`() {
+    val path = FileProvider.projectRoot().resolve("build")
+      .also { if (!it.exists()) it.createDirectory() }.resolve("should-be-directory.txt")
+    path.deleteIfExists()
+    path.createFile()
+
+    val (_, _, result) = ToolingApiTestLauncher().launchServer(
+      projectDir = path)
+    assertThat(result?.isSuccessful).isFalse()
+    assertThat(result?.failure).isEqualTo(TaskExecutionResult.Failure.PROJECT_NOT_DIRECTORY)
   }
 
   @Test
@@ -269,9 +299,16 @@ class MultiModuleAndroidProjectTest {
   fun `test CI-only latest tested AGP version warning`() {
     ciOnlyTest {
       val log = CollectingLogger()
-      val agpVersion = "8.1.1"
-      val client = MultiVersionTestClient(agpVersion = agpVersion, gradleVersion = "8.1", log = log)
-      val (_, project, result) = ToolingApiTestLauncher().launchServer(client = client, log = log)
+      val agpVersion = AndroidPluginVersion.parse(BuildInfo.AGP_VERSION_LATEST)
+
+      val client = MultiVersionTestClient(agpVersion = agpVersion.toStringSimple(),
+        gradleVersion = "${agpVersion.major}.${agpVersion.minor}", log = log)
+      val (_, project, result) = ToolingApiTestLauncher().launchServer(
+        client = client,
+        log = log,
+        sysProps = mapOf(
+          ToolingProps.TESTING_LATEST_AGP_VERSION to MultiVersionTestClient.DEFAULT_AGP_VERSION)
+      )
       val output = log.toString()
 
       if (result?.isSuccessful != true) {
@@ -331,7 +368,7 @@ class MultiModuleAndroidProjectTest {
 
     private val string = StringBuilder()
 
-    override fun doLog(priority: Priority?, message: String?) {
+    override fun doLog(level: Level?, message: String?) {
       string.append("${message?.trim()}${System.lineSeparator()}")
     }
 

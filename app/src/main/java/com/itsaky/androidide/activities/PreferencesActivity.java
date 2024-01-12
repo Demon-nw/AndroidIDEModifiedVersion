@@ -26,11 +26,8 @@ import com.itsaky.androidide.R;
 import com.itsaky.androidide.app.LimitlessIDEActivity;
 import com.itsaky.androidide.databinding.ActivityPreferencesBinding;
 import com.itsaky.androidide.fragments.IDEPreferencesFragment;
-import com.itsaky.androidide.preferences.AboutPreferences;
-import com.itsaky.androidide.preferences.ConfigurationPreferences;
-import com.itsaky.androidide.preferences.DeveloperOptionsPreferences;
 import com.itsaky.androidide.preferences.IDEPreferences;
-import com.itsaky.androidide.preferences.PrivacyPreferences;
+import com.itsaky.androidide.preferences.RootPrefExtsKt;
 import java.util.ArrayList;
 
 public class PreferencesActivity extends LimitlessIDEActivity {
@@ -58,10 +55,8 @@ public class PreferencesActivity extends LimitlessIDEActivity {
 
     final var prefs = IDEPreferences.INSTANCE;
     prefs.getChildren().clear();
-    prefs.addPreference(new ConfigurationPreferences());
-    prefs.addPreference(new PrivacyPreferences());
-    prefs.addPreference(new DeveloperOptionsPreferences());
-    prefs.addPreference(new AboutPreferences());
+
+    RootPrefExtsKt.addRootPreferences(prefs);
 
     final var args = new Bundle();
     args.putParcelableArrayList(

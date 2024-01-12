@@ -46,11 +46,11 @@ import com.itsaky.androidide.syntax.colorschemes.SchemeAndroidIDE.COMPLETION_WND
 import com.itsaky.androidide.syntax.colorschemes.SchemeAndroidIDE.COMPLETION_WND_TEXT_DETAIL
 import com.itsaky.androidide.syntax.colorschemes.SchemeAndroidIDE.COMPLETION_WND_TEXT_LABEL
 import com.itsaky.androidide.syntax.colorschemes.SchemeAndroidIDE.COMPLETION_WND_TEXT_TYPE
-import com.itsaky.androidide.editor.language.utils.TranslationCompletion
 import com.itsaky.androidide.tasks.executeAsync
 import com.itsaky.androidide.utils.customOrJBMono
 import com.itsaky.androidide.xml.versions.ApiVersions
 import com.itsaky.androidide.xml.versions.Info
+import com.itsaky.androidide.editor.language.utils.TranslationCompletion
 import io.github.rosemoe.sora.widget.component.EditorCompletionAdapter
 import com.itsaky.androidide.lsp.models.CompletionItem as LspCompletionItem
 
@@ -76,7 +76,7 @@ class CompletionListAdapter : EditorCompletionAdapter() {
         ?: LayoutCompletionItemBinding.inflate(LayoutInflater.from(context), parent, false)
     val translationCompletion = TranslationCompletion.getInstance(context)
     val item = getItem(position) as LspCompletionItem
-    val label = item.getLabel()
+    val label = item.ideLabel
     val desc = item.detail
     val translation = translationCompletion.query(label)
     var type: String? = item.completionKind.toString()

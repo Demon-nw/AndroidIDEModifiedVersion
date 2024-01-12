@@ -17,6 +17,8 @@
 
 package com.itsaky.androidide.plugins
 
+import com.android.build.gradle.BaseExtension
+import isFDroidBuild
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -41,13 +43,21 @@ class AndroidIDEPlugin : Plugin<Project> {
       val isAndroidModule = plugins.hasPlugin("com.android.application") ||
           plugins.hasPlugin("com.android.library")
 
-      if (isAndroidModule) {
+      if (isAndroidModule && !isFDroidBuild) {
         // setup signing configuration
         plugins.apply(SigningConfigPlugin::class.java)
       }
 
+      if (isFDroidBuild && project.path == ":app") {
+        val baseExtension = extensions.getByType(BaseExtension::class.java)
+        logger.warn("Building for F-Droid with configuration:")
+        logger.warn("applicationId = ${baseExtension.defaultConfig.applicationId}")
+        logger.warn("versionName = ${baseExtension.defaultConfig.versionName}")
+        logger.warn("versionCode = ${baseExtension.defaultConfig.versionCode}")
+        logger.warn("--- x --- x ---")
+      }
+
       val taskName = when {
-        project.path == ":app" -> "testArm64-v8aDebugUnitTest"
         isAndroidModule -> "testDebugUnitTest"
         else -> "test"
       }

@@ -78,6 +78,7 @@ class EditorBuildEventListener : GradleBuildService.EventListener {
   }
 
   override fun onBuildFailed(tasks: List<String?>) {
+
     analyzeCurrentFile()
 
     isFirstBuild = false
@@ -87,6 +88,7 @@ class EditorBuildEventListener : GradleBuildService.EventListener {
   }
 
   override fun onOutput(line: String?) {
+
     line?.let { activity().appendBuildOutput(it) }
     // TODO This can be handled better when ProgressEvents are received from Tooling API server
     if (line!!.contains("BUILD SUCCESSFUL") || line.contains("BUILD FAILED")) {
@@ -95,6 +97,7 @@ class EditorBuildEventListener : GradleBuildService.EventListener {
   }
 
   private fun analyzeCurrentFile() {
+
     val editorView = activity().getCurrentEditor()
     if (editorView != null) {
       val editor = editorView.editor

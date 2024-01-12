@@ -104,7 +104,9 @@ abstract class BaseEditorActivity :
   protected var diagnosticInfoBinding: LayoutDiagnosticInfoBinding? = null
   protected var filesTreeFragment: FileTreeFragment? = null
   protected var editorBottomSheet: BottomSheetBehavior<out View?>? = null
-  protected var isDestroying = false
+
+  var isDestroying = false
+    protected set
 
   protected val log: ILogger = ILogger.newInstance("EditorActivity")
 
@@ -118,7 +120,7 @@ abstract class BaseEditorActivity :
   var uiDesignerResultLauncher: ActivityResultLauncher<Intent>? = null
   val editorViewModel by viewModels<EditorViewModel>()
 
-  private var _binding: ActivityEditorBinding? = null
+  internal var _binding: ActivityEditorBinding? = null
   val binding: ActivityEditorBinding
     get() = checkNotNull(_binding) { "Activity has been destroyed" }
 
@@ -372,7 +374,7 @@ abstract class BaseEditorActivity :
 
   open fun showFirstBuildNotice() {
     newMaterialDialogBuilder(this)
-      .setPositiveButton(string.ok, null)
+      .setPositiveButton(android.R.string.ok, null)
       .setTitle(string.title_first_build)
       .setMessage(string.msg_first_build)
       .setCancelable(false)
@@ -595,7 +597,7 @@ abstract class BaseEditorActivity :
     val builder = newMaterialDialogBuilder(this)
     builder.setTitle(string.need_help)
     builder.setMessage(string.msg_need_help)
-    builder.setPositiveButton(string.ok, null)
+    builder.setPositiveButton(android.R.string.ok, null)
     builder.create().show()
   }
 

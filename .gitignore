@@ -1,3 +1,10 @@
+# Properties file for F-Droid
+fdroid.properties
+
+# Crowdin
+crowdin.properties
+.idea/crowdin_settings.xml
+
 # Downloaded signing key
 signing-key.jks
 

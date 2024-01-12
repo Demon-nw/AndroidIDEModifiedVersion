@@ -15,38 +15,21 @@
   ~   along with AndroidIDE.  If not, see <https://www.gnu.org/licenses/>.
   -->
 
-<!DOCTYPE resources [
-  <!ENTITY TERMUX_PACKAGE_NAME "com.itsaky.androidide">
-  <!ENTITY TERMUX_APP_NAME "AndroidIDE">
-  <!ENTITY TERMUX_PREFIX_DIR_PATH "/data/data/com.itsaky.androidide/files/usr">
-  ]>
-
-<resources>
-
-  <string name="application_name">&TERMUX_APP_NAME;</string>
-  <string name="shared_user_label">&TERMUX_APP_NAME; user</string>
-
-
-
-  <!-- Termux RUN_COMMAND permission -->
-  <string name="permission_run_command_label">Run commands in &TERMUX_APP_NAME; environment</string>
-  <string name="permission_run_command_description">execute arbitrary commands within &TERMUX_APP_NAME;
-    environment and access files</string>
-
-
+<resources xmlns:tools="http://schemas.android.com/tools"
+  tools:ignore="UnusedResources">
 
   <!-- Termux Bootstrap Packages Installation -->
   <string name="bootstrap_installer_body">Installing bootstrap packages…</string>
   <string name="bootstrap_error_title">Unable to install bootstrap</string>
-  <string name="bootstrap_error_body">&TERMUX_APP_NAME; was unable to install the bootstrap packages.</string>
+  <string name="bootstrap_error_body">AndroidIDE was unable to install the bootstrap packages.</string>
   <string name="bootstrap_error_abort">Abort</string>
   <string name="bootstrap_error_try_again">Try again</string>
-  <string name="bootstrap_error_not_primary_user_message">&TERMUX_APP_NAME; can only be run as the primary user.
-        \nBootstrap binaries compiled for &TERMUX_APP_NAME; have hardcoded $PREFIX path and cannot be installed
+  <string name="bootstrap_error_not_primary_user_message">AndroidIDE can only be run as the primary user.
+        \nBootstrap binaries compiled for AndroidIDE have hardcoded $PREFIX path and cannot be installed
         under any path other than:\n%1$s.</string>
-  <string name="bootstrap_error_installed_on_portable_sd">&TERMUX_APP_NAME; cannot be installed on
+  <string name="bootstrap_error_installed_on_portable_sd">AndroidIDE cannot be installed on
         portable/external/removable sd card on your device.
-        \nBootstrap binaries compiled for &TERMUX_APP_NAME; have hardcoded $PREFIX path and cannot be installed
+        \nBootstrap binaries compiled for AndroidIDE have hardcoded $PREFIX path and cannot be installed
         under any path other than:\n%1$s.</string>
 
 
@@ -91,7 +74,6 @@
   <string name="action_kill_process">Kill process (%d)</string>
   <string name="title_confirm_kill_process">Really kill this session?</string>
 
-  <string name="action_style_terminal">Style</string>
   <string name="action_toggle_keep_screen_on">Keep screen on</string>
   <string name="action_open_help">Help</string>
   <string name="action_open_settings">Settings</string>
@@ -103,50 +85,33 @@
 
 
   <!-- Termux Notifications -->
-  <string name="notification_action_exit">Exit</string>
+  <string name="notification_action_exit" translatable="false">@string/exit</string>
   <string name="notification_action_wake_lock">Acquire wakelock</string>
   <string name="notification_action_wake_unlock">Release wakelock</string>
 
 
 
   <!-- TermuxService -->
-  <string name="error_display_over_other_apps_permission_not_granted_to_start_terminal">&TERMUX_APP_NAME; requires
+  <string name="error_display_over_other_apps_permission_not_granted_to_start_terminal">AndroidIDE requires
         \"Display over other apps\" permission to start terminal sessions from background on Android >= 10.
-        Grants it from Settings -> Apps -> &TERMUX_APP_NAME; -> Advanced</string>
-  <string name="error_termux_service_invalid_execution_command_runner">Invalid execution command runner to TermuxService: `%1$s`</string>
-  <string name="error_termux_service_unsupported_execution_command_runner">Unsupported execution command runner to TermuxService: `%1$s`</string>
-  <string name="error_termux_service_unsupported_execution_command_shell_create_mode">Unsupported execution command shell create mode to TermuxService: `%1$s`</string>
-  <string name="error_termux_service_execution_command_shell_name_unset">Shell name not set but `%1$s` shell create mode passed</string>
-
-
-
-  <!-- Termux RunCommandService -->
-  <string name="error_run_command_service_invalid_intent_action">Invalid intent action to RunCommandService: `%1$s`</string>
-  <string name="error_run_command_service_invalid_execution_command_runner">Invalid execution command runner to RunCommandService: `%1$s`</string>
-  <string name="error_run_command_service_mandatory_extra_missing">Mandatory extra missing to RunCommandService: \"%1$s\"</string>
-  <string name="error_run_command_service_api_help">Visit %1$s for more info on RUN_COMMAND Intent usage.</string>
-
-
+        Grants it from Settings -> Apps -> AndroidIDE -> Advanced</string>
+  <string name="error_termux_service_invalid_execution_command_runner" translatable="false">Invalid execution command runner to TermuxService: `%1$s`</string>
+  <string name="error_termux_service_unsupported_execution_command_runner" translatable="false">Unsupported execution command runner to TermuxService: `%1$s`</string>
+  <string name="error_termux_service_unsupported_execution_command_shell_create_mode" translatable="false">Unsupported execution command shell create mode to TermuxService: `%1$s`</string>
+  <string name="error_termux_service_execution_command_shell_name_unset" translatable="false">Shell name not set but `%1$s` shell create mode passed</string>
 
   <!-- Termux File Receiver -->
   <string name="title_file_received">Save file in ~/downloads/</string>
   <string name="action_file_received_edit">Edit</string>
   <string name="action_file_received_open_directory">Open directory</string>
 
-
-
   <!-- Miscellaneous -->
   <string name="error_termux_service_start_failed_general">Failed to start TermuxService. Check logcat for exception message.</string>
   <string name="error_termux_service_start_failed_bg">Failed to start TermuxService while app is in background due to android bg restrictions.</string>
 
-
-
-  <!-- Termux Settings -->
-  <string name="title_activity_termux_settings">&TERMUX_APP_NAME; Settings</string>
-
   <!-- Termux App Preferences -->
-  <string name="termux_preferences_title">&TERMUX_APP_NAME;</string>
-  <string name="termux_preferences_summary">Preferences for &TERMUX_APP_NAME; app</string>
+  <string name="termux_preferences_title" translatable="false">Termux</string>
+  <string name="termux_preferences_summary">Preferences for the Termux terminal.</string>
 
   <!-- Debugging Preferences -->
   <string name="termux_debugging_preferences_title">Debugging</string>
@@ -163,11 +128,6 @@
   <string name="termux_terminal_view_key_logging_enabled_off">Logs will not have entries for terminal view keys. (Default)</string>
   <string name="termux_terminal_view_key_logging_enabled_on">Logcat logs will have entries for terminal view keys.
                     These are very verbose and should be disabled under normal circumstances or will cause performance issues.</string>
-
-  <!-- Plugin Error Notifications -->
-  <string name="termux_plugin_error_notifications_enabled_title">Plugin Error Notifications</string>
-  <string name="termux_plugin_error_notifications_enabled_off">Disable flashes and notifications for plugin errors.</string>
-  <string name="termux_plugin_error_notifications_enabled_on">Show flashes and notifications for plugin errors. (Default)</string>
 
   <!-- Crash Report Notifications -->
   <string name="termux_crash_report_notifications_enabled_title">Crash Report Notifications</string>
@@ -208,13 +168,5 @@
   <string name="termux_terminal_view_terminal_margin_adjustment_on">Terminal margin adjustment will be enabled.
                     It should be enabled to try to fix the issue where soft keyboard covers part of extra keys/terminal view.
                     If it causes screen flickering on your devices, then disable it. (Default)</string>
-
-
-
-  <!-- About Preference -->
-  <string name="about_preference_title">About</string>
-
-  <!-- Donate Preference -->
-  <string name="donate_preference_title">Donate</string>
 
 </resources>

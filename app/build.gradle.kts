@@ -7,7 +7,6 @@ plugins {
   id("kotlin-android")
   id("kotlin-kapt")
   id("kotlin-parcelize")
-  id("com.google.android.gms.oss-licenses-plugin")
   id("androidx.navigation.safeargs.kotlin")
 }
 
@@ -27,25 +26,10 @@ android {
     generateLocaleConfig = true
   }
 
-  buildTypes { release { isShrinkResources = true } }
-
-  packaging {
-    resources.excludes.addAll(
-      arrayOf(
-        "META-INF/eclipse.inf",
-        "META-INF/CHANGES",
-        "META-INF/README.md",
-        "about_files/LICENSE-2.0.txt",
-        "META-INF/AL2.0",
-        "META-INF/LGPL2.1",
-        "plugin.xml",
-        "plugin.properties",
-        "about.mappings",
-        "about.properties",
-        "about.ini",
-        "modeling32.png"
-      )
-    )
+  buildTypes {
+    release {
+      isShrinkResources = true
+    }
   }
 
   lint {
@@ -69,6 +53,8 @@ dependencies {
   implementation(libs.common.glide)
   implementation(libs.common.jsoup)
   implementation(libs.common.kotlin.coroutines.android)
+  implementation(libs.common.retrofit)
+  implementation(libs.common.retrofit.gson)
 
   implementation(libs.google.auto.service.annotations)
   implementation(libs.google.gson)
@@ -97,7 +83,6 @@ dependencies {
   implementation(libs.androidx.work.ktx)
   implementation(libs.google.material)
   implementation(libs.google.flexbox)
-  implementation(libs.google.oss.licenses)
 
   // Kotlin
   implementation(libs.androidx.core.ktx)
@@ -118,6 +103,7 @@ dependencies {
   implementation(projects.gradlePluginConfig)
   implementation(projects.idestats)
   implementation(projects.subprojects.aaptcompiler)
+  implementation(projects.subprojects.appintro)
   implementation(projects.subprojects.javacServices)
   implementation(projects.subprojects.javapoet)
   implementation(projects.subprojects.xmlUtils)

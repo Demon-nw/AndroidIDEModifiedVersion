@@ -29,16 +29,27 @@ object ProjectConfig {
   const val SCM_SSH =
     "scm:git:ssh://git@${REPO_HOST}/${REPO_OWNER}/${REPO_NAME}.git"
 
-  const val PROJECT_SITE = "https://androidide.com"
+  const val PROJECT_SITE = "https://m.androidide.com"
 }
 
 private var shouldPrintVersionName = true
+
+/**
+ * Whether this build is being executed in the F-Droid build server.
+ */
+val Project.isFDroidBuild: Boolean
+  get() {
+    if (!FDroidConfig.hasRead) {
+      FDroidConfig.load(this)
+    }
+    return FDroidConfig.isFDroidBuild
+  }
 
 val Project.simpleVersionName: String
   get() {
 
     val version = rootProject.version.toString()
-    val regex = Regex("^v\\d+\\.?\\d+\\.?\\d+(-\\w+)*")
+    val regex = Regex("^v\\d+\\.?\\d+\\.?\\d+-\\w+")
 
     val simpleVersion = regex.find(version)?.value?.substring(1)?.also {
       if (shouldPrintVersionName) {
@@ -82,6 +93,13 @@ val Project.publishingVersion: String
   get() {
 
     var publishing = simpleVersionName
+    if (isFDroidBuild) {
+      // when building for F-Droid, the release is already published so we should have
+      // the maven dependencies already published
+      // simply return the simple version name here.
+      return publishing
+    }
+
     if (CI.isCiBuild && CI.branchName != "main") {
       publishing += "-${CI.commitHash}-SNAPSHOT"
     }
@@ -93,12 +111,12 @@ val Project.publishingVersion: String
  * The version name which is used to download the artifacts at runtime.
  *
  * The value varies based on the following cases :
- * - For CI builds: same as [publishingVersion].
+ * - For CI and F-Droid builds: same as [publishingVersion].
  * - For local builds: `latest.integration` to make sure that Gradle downloads the latest snapshots.
  */
 val Project.downloadVersion: String
   get() {
-    return if (CI.isCiBuild) {
+    return if (CI.isCiBuild || isFDroidBuild) {
       publishingVersion
     } else {
       // sometimes, when working locally, Gradle fails to download the latest snapshot version

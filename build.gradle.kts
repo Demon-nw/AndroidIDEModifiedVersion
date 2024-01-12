@@ -18,30 +18,31 @@
 @file:Suppress("UnstableApiUsage")
 
 import com.itsaky.androidide.plugins.AndroidIDEPlugin
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import com.itsaky.androidide.plugins.conf.configureAndroidModule
 import com.itsaky.androidide.plugins.conf.configureJavaModule
 import com.itsaky.androidide.plugins.conf.configureMavenPublish
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
-@Suppress("DSL_SCOPE_VIOLATION")
 plugins {
   id("build-logic.root-project")
   alias(libs.plugins.android.application) apply false
   alias(libs.plugins.android.library) apply false
-  alias(libs.plugins.kotlin) apply false
+  alias(libs.plugins.kotlin.android) apply false
   alias(libs.plugins.maven.publish) apply false
   alias(libs.plugins.gradle.publish) apply false
 }
 
 buildscript {
   dependencies {
-    classpath(libs.oss.licenses.plugin)
     classpath(libs.kotlin.gradle.plugin)
     classpath(libs.nav.safe.args.gradle.plugin)
   }
 }
 
 subprojects {
+  // Always load the F-Droid config
+  FDroidConfig.load(project)
+
   afterEvaluate {
     apply { plugin(AndroidIDEPlugin::class.java) }
   }
@@ -49,8 +50,12 @@ subprojects {
   project.group = BuildConfig.packageName
   project.version = rootProject.version
 
-  plugins.withId("com.android.application") { configureAndroidModule(libs.androidx.lib.desugaring.get()) }
-  plugins.withId("com.android.library") { configureAndroidModule(libs.androidx.lib.desugaring.get()) }
+  plugins.withId("com.android.application") {
+    configureAndroidModule(libs.androidx.lib.desugaring.get())
+  }
+  plugins.withId("com.android.library") {
+    configureAndroidModule(libs.androidx.lib.desugaring.get())
+  }
   plugins.withId("java-library") { configureJavaModule() }
   plugins.withId("com.vanniktech.maven.publish.base") { configureMavenPublish() }
 

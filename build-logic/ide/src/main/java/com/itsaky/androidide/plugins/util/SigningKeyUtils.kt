@@ -31,6 +31,8 @@ import java.util.Base64
  * @author Akash Yadav
  */
 object SigningKeyUtils {
+  
+  private val _warned = mutableMapOf<String, Boolean>()
 
   @JvmStatic
   fun Project.downloadSigningKey() {
@@ -58,7 +60,7 @@ object SigningKeyUtils {
     logger.info("Downloading signing key...")
     val result = exec {
       workingDir(rootProject.projectDir)
-      commandLine("bash", "./.tools/download_key.sh", signingKey.absolutePath, url, user, pass)
+      commandLine("bash", "./scripts/download_key.sh", signingKey.absolutePath, url, user, pass)
     }
 
     result.assertNormalExitValue()
@@ -71,7 +73,7 @@ object SigningKeyUtils {
     }
 
     if (value.isNullOrBlank()) {
-      if (warn) {
+      if (warn && _warned.putIfAbsent(key, true) != true) {
         logger.warn("$key is not set. Debug key will be used to sign the APK")
       }
       return null

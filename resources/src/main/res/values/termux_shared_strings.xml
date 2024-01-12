@@ -15,12 +15,6 @@
   ~   along with AndroidIDE.  If not, see <https://www.gnu.org/licenses/>.
   -->
 
-<!DOCTYPE resources [
-  <!ENTITY TERMUX_PACKAGE_NAME "com.itsaky.androidide">
-  <!ENTITY TERMUX_APP_NAME "AndroidIDE">
-  <!ENTITY TERMUX_PREFIX_DIR_PATH "/data/data/com.itsaky.androidide/files/usr">
-  ]>
-
 <resources>
 
   <string name="msg_directory_absolute_path">%1$s Directory Absolute Path: \"%2$s\"</string>
@@ -35,14 +29,13 @@
   <string name="error_get_package_context_failed_help_url_message">Check %1$s for more details.</string>
   <string name="error_get_component_state_failed">Failed to get %1$s/%2$s component state</string>
   <string name="error_enable_component_failed">Failed to enable %1$s/%2$s component</string>
-  <string name="error_disable_component_failed">Failed to enable %1$s/%2$s component</string>
+  <string name="error_disable_component_failed">Failed to disable %1$s/%2$s component</string>
 
 
 
   <!-- PermissionUtils -->
-  <string name="message_sudo_please_grant_permissions">Please grant requested permission(s)</string>
   <string name="error_failed_to_request_permissions">Failed to request permissions with request code %1$d: %2$s</string>
-  <string name="error_attempted_to_check_for_permissions_not_requested">Attempted to check for permissions that have not been requested in app manifest: %1$s</string>
+  <string name="error_attempted_to_check_for_permissions_not_requested" translatable="false">Attempted to check for permissions that have not been requested in app manifest: %1$s</string>
   <string name="error_attempted_to_ask_for_permissions_not_requested">Attempted to ask for permissions that have not been requested in app manifest: %1$s</string>
   <string name="error_has_not_requested_legacy_external_storage">The \"%1$s\" package is targeting targetSdkVersion %2$d and is running on android sdk %3$d but has not set requestLegacyExternalStorage to true in app manifest</string>
   <string name="msg_requires_dump_and_package_usage_stats_permissions">Requires `DUMP` and `PACKAGE_USAGE_STATS` permission</string>
@@ -77,13 +70,12 @@
 
 
   <!-- Shell -->
-  <string name="error_sending_sigkill_to_process">Sending SIGKILL to process on user request or because android is killing the execution service</string>
-  <string name="error_executable_unset">Executable not set \"%1$s\" for shell command</string>
-  <string name="error_execution_cancelled">Execution has been cancelled since execution service is being killed</string>
-  <string name="error_failed_to_execute_termux_session_command">Failed to execute \"%1$s\" termux session command</string>
-  <string name="error_failed_to_execute_app_shell_command">Failed to execute \"%1$s\" app shell command</string>
-  <string name="error_exception_received_while_executing_termux_session_command">Exception received while to executing \"%1$s\" termux session command.\nException: %2$s</string>
-  <string name="error_exception_received_while_executing_app_shell_command">Exception received while to executing \"%1$s\" app shell command.\nException: %2$s</string>
+  <string name="error_sending_sigkill_to_process" translatable="false">Sending SIGKILL to process on user request or because android is killing the execution service</string>
+  <string name="error_executable_unset" translatable="false">Executable not set \"%1$s\" for shell command</string>
+  <string name="error_execution_cancelled" translatable="false">Execution has been cancelled since execution service is being killed</string>
+  <string name="error_failed_to_execute_termux_session_command" translatable="false">Failed to execute \"%1$s\" termux session command</string>
+  <string name="error_failed_to_execute_app_shell_command" translatable="false">Failed to execute \"%1$s\" app shell command</string>
+  <string name="error_exception_received_while_executing_app_shell_command" translatable="false">Exception received while to executing \"%1$s\" app shell command.\nException: %2$s</string>
 
 
 
@@ -101,38 +93,26 @@
         on GitHub or other official termux community forums **will likely be automatically closed/deleted** and may
         even result in **temporary or permanent** ban. Check %1$s/wiki/Hacking for details.</string>
 
-  <string name="msg_termux_app_required_by_app">The &TERMUX_APP_NAME; is required by the %1$s app to run termux commands.</string>
-  <string name="error_termux_app_package_context_not_accessible">The &TERMUX_APP_NAME; app (package context) is not accessible.</string>
-  <string name="error_termux_prefix_dir_path_not_accessible">The &TERMUX_APP_NAME; app $PREFIX directory is not accessible by the %1$s app.
-        This may be because you have not installed or setup &TERMUX_APP_NAME; app or
-    &TERMUX_APP_NAME; app and %1$s app both have different APK signatures because you have managed to install both apps from different sources.
-        It may also be because &TERMUX_APP_NAME; $PREFIX directory \"&TERMUX_PREFIX_DIR_PATH;\" does not exist or does not have read,
+  <string name="msg_termux_app_required_by_app">The AndroidIDE is required by the %1$s app to run termux commands.</string>
+  <string name="error_termux_app_package_context_not_accessible">The AndroidIDE app (package context) is not accessible.</string>
+  <string name="error_termux_prefix_dir_path_not_accessible">The AndroidIDE app $PREFIX directory is not accessible by the %1$s app.
+        This may be because you have not installed or setup AndroidIDE app or
+    AndroidIDE app and %1$s app both have different APK signatures because you have managed to install both apps from different sources.
+        It may also be because AndroidIDE $PREFIX directory \"/data/data/com.itsaky.androidide/files/usr\" does not exist or does not have read,
         write and execute permissions.</string>
 
 
 
   <!-- Miscellaneous -->
-  <string name="action_yes">Yes</string>
-  <string name="action_no">No</string>
-  <string name="action_copy">Copy</string>
+  <string name="action_yes" translatable="false">@string/yes</string>
+  <string name="action_no" translatable="false">@string/no</string>
+  <string name="action_copy" translatable="false">@string/copy</string>
   <string name="action_share">Share</string>
-  <string name="action_cancel">Cancel</string>
+  <string name="action_cancel" translatable="false">@android:string/cancel</string>
   <string name="action_save_to_file">Save To File</string>
 
   <string name="msg_storage_permission_granted_on_request">The storage permission granted by user on request</string>
   <string name="msg_storage_permission_not_granted_on_request">The storage permission not granted by user on request</string>
-
-
-
-  <!-- Launcher Icons -->
-  <string name="action_enable_launcher_icon">Enable Launcher Icon</string>
-  <string name="action_disable_launcher_icon">Disable Launcher Icon</string>
-  <string name="msg_enabling_launcher_icon">Enabling %1$s app launcher icon</string>
-  <string name="msg_disabling_launcher_icon">Disabling %1$s app launcher icon</string>
-  <string name="setting_launcher_icon_title">Launcher Icon Enabled</string>
-  <string name="setting_launcher_icon_enabled_off">Launcher Icon will be disabled.</string>
-  <string name="setting_launcher_icon_enabled_on">Launcher Icon will be enabled. (Default)</string>
-
 
 
   <!-- Log Level -->

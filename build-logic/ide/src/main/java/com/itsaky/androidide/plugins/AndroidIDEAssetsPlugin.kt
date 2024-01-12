@@ -19,9 +19,13 @@ package com.itsaky.androidide.plugins
 
 import BuildConfig
 import VersionUtils
-import com.android.build.api.variant.AndroidComponentsExtension
+import com.android.build.api.variant.ApplicationAndroidComponentsExtension
+import com.itsaky.androidide.plugins.tasks.AddAndroidJarToAssetsTask
 import com.itsaky.androidide.plugins.tasks.AddFileToAssetsTask
 import com.itsaky.androidide.plugins.tasks.GenerateInitScriptTask
+import com.itsaky.androidide.plugins.tasks.GradleWrapperGeneratorTask
+import com.itsaky.androidide.plugins.tasks.SetupAapt2Task
+import com.itsaky.androidide.plugins.util.SdkUtils.getAndroidJar
 import downloadVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -36,46 +40,56 @@ class AndroidIDEAssetsPlugin : Plugin<Project> {
 
   override fun apply(target: Project) {
     target.run {
-      extensions.getByType(AndroidComponentsExtension::class.java).apply {
-        onVariants { variant ->
+      val wrapperGeneratorTaskProvider = tasks.register("generateGradleWrapper",
+        GradleWrapperGeneratorTask::class.java)
 
-          val variantNameCapitalized = variant.name.capitalized()
+      val androidComponentsExtension = extensions.getByType(
+        ApplicationAndroidComponentsExtension::class.java)
 
-          // Init script generator
-          val generateInitScript = tasks.register(
-            "generate${variantNameCapitalized}InitScript",
-            GenerateInitScriptTask::class.java
-          ) {
-            mavenGroupId.set(BuildConfig.packageName)
-            snapshotsRepository.set(VersionUtils.SNAPSHOTS_REPO)
-            downloadVersion.set(this@run.downloadVersion)
-          }
+      val setupAapt2TaskTaskProvider = tasks.register("setupAapt2", SetupAapt2Task::class.java)
 
-          variant.sources.assets?.addGeneratedSourceDirectory(
-            generateInitScript,
-            GenerateInitScriptTask::outputDir
-          )
+      val addAndroidJarTaskProvider = tasks.register("addAndroidJarToAssets",
+        AddAndroidJarToAssetsTask::class.java) {
+        androidJar = androidComponentsExtension.getAndroidJar(assertExists = true)
+      }
 
-          // Tooling API JAR copier
-          val copyToolingApiJar = tasks.register(
-            "copy${variantNameCapitalized}ToolingApiJar",
-            AddFileToAssetsTask::class.java
-          ) {
-            val toolingApi = rootProject.findProject(":subprojects:tooling-api-impl")!!
-            dependsOn(toolingApi.tasks.getByName("copyJar"))
+      androidComponentsExtension.onVariants { variant ->
 
-            val toolingApiJar = toolingApi.layout.buildDirectory.file(
-              "libs/tooling-api-all.jar")
+        val variantNameCapitalized = variant.name.capitalized()
 
-            inputFile.set(toolingApiJar)
-            baseAssetsPath.set("data/common")
-          }
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(setupAapt2TaskTaskProvider,
+          SetupAapt2Task::outputDirectory)
 
-          variant.sources.assets?.addGeneratedSourceDirectory(
-            copyToolingApiJar,
-            AddFileToAssetsTask::outputDirectory
-          )
+        variant.sources.assets?.addGeneratedSourceDirectory(wrapperGeneratorTaskProvider,
+          GradleWrapperGeneratorTask::outputDirectory)
+
+        variant.sources.assets?.addGeneratedSourceDirectory(addAndroidJarTaskProvider,
+          AddAndroidJarToAssetsTask::outputDirectory)
+
+        // Init script generator
+        val generateInitScript = tasks.register("generate${variantNameCapitalized}InitScript",
+          GenerateInitScriptTask::class.java) {
+          mavenGroupId.set(BuildConfig.packageName)
+          downloadVersion.set(this@run.downloadVersion)
         }
+
+        variant.sources.assets?.addGeneratedSourceDirectory(generateInitScript,
+          GenerateInitScriptTask::outputDir)
+
+        // Tooling API JAR copier
+        val copyToolingApiJar = tasks.register("copy${variantNameCapitalized}ToolingApiJar",
+          AddFileToAssetsTask::class.java) {
+          val toolingApi = rootProject.findProject(":subprojects:tooling-api-impl")!!
+          dependsOn(toolingApi.tasks.getByName("copyJar"))
+
+          val toolingApiJar = toolingApi.layout.buildDirectory.file("libs/tooling-api-all.jar")
+
+          inputFile.set(toolingApiJar)
+          baseAssetsPath.set("data/common")
+        }
+
+        variant.sources.assets?.addGeneratedSourceDirectory(copyToolingApiJar,
+          AddFileToAssetsTask::outputDirectory)
       }
     }
   }

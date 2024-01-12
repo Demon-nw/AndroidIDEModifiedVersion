@@ -17,11 +17,13 @@
 
 package com.itsaky.androidide.templates.impl.noAndroidXActivity
 
+import com.android.aaptcompiler.ConfigDescription
+import com.android.aaptcompiler.android.ResTableConfig
 import com.itsaky.androidide.templates.base.modules.android.defaultAppModule
-import com.itsaky.androidide.templates.base.util.AndroidModuleResManager
+import com.itsaky.androidide.templates.base.util.AndroidModuleResManager.ResourceType.LAYOUT
+import com.itsaky.androidide.templates.base.util.AndroidModuleResManager.ResourceType.VALUES
 import com.itsaky.androidide.templates.impl.R
 import com.itsaky.androidide.templates.impl.base.createRecipe
-import com.itsaky.androidide.templates.impl.base.emptyThemesAndColors
 import com.itsaky.androidide.templates.impl.base.emptyValuesFile
 import com.itsaky.androidide.templates.impl.base.writeMainActivity
 import com.itsaky.androidide.templates.impl.baseProjectImpl
@@ -29,16 +31,27 @@ import com.itsaky.androidide.templates.impl.baseProjectImpl
 fun noAndroidXActivityProject() = baseProjectImpl {
   templateName = R.string.template_no_AndroidX
   thumb = R.drawable.template_empty_noandroidx
+  val configNight = ConfigDescription().apply {
+    uiMode = ResTableConfig.UI_MODE.NIGHT_YES
+  }
   defaultAppModule(addAndroidX = false) {
-    recipe = createRecipe {
-      emptyThemesAndColors()
-      res {
-        writeXmlResource("colors",
-          AndroidModuleResManager.ResourceType.VALUES, source = emptyValuesFile())
-        writeXmlResource("themes", AndroidModuleResManager.ResourceType.VALUES,
-          source = noAndroidXTheme())
 
-        writeXmlResource("activity_main", AndroidModuleResManager.ResourceType.LAYOUT,
+    // do not set a theme resource to the application
+    manifest.themeRes = ""
+
+    recipe = createRecipe {
+      res {
+        // values
+        writeXmlResource("colors", VALUES, source = emptyValuesFile())
+        writeXmlResource("themes", VALUES, source = emptyValuesFile())
+
+        // values-night
+        writeXmlResource("colors", VALUES, config = configNight,
+          source = emptyValuesFile())
+        writeXmlResource("themes", VALUES, config = configNight,
+          source = emptyValuesFile())
+
+        writeXmlResource("activity_main", LAYOUT,
           source = noAndroidXActivityLayout())
       }
 

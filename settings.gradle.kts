@@ -1,7 +1,5 @@
 @file:Suppress("UnstableApiUsage")
 
-import com.mooltiverse.oss.nyx.gradle.NyxExtension
-
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
@@ -13,16 +11,30 @@ pluginManagement {
   }
 }
 
-plugins { id("com.mooltiverse.oss.nyx") version "2.5.1" }
-
-extensions.configure<NyxExtension> {
-  git {
-    remotes.register("origin") {
-      user.set("{{#environmentVariable}}GH_TOKEN{{/environmentVariable}}")
-      password.set("")
-    }
+buildscript {
+  repositories {
+    mavenCentral()
   }
-  configurationFile.set(".nyx.yml")
+  dependencies {
+    classpath("com.mooltiverse.oss.nyx:gradle:2.5.1")
+  }
+}
+
+FDroidConfig.load(rootDir)
+
+if (FDroidConfig.hasRead && FDroidConfig.isFDroidBuild) {
+  gradle.rootProject {
+    val regex = Regex("^v\\d+\\.?\\d+\\.?\\d+-\\w+")
+
+    val simpleVersion = regex.find(FDroidConfig.fDroidVersionName!!)?.value
+      ?: throw IllegalArgumentException("Invalid version '${FDroidConfig.fDroidVersionName}. Version name must have semantic version format.'")
+
+    project.setProperty("version", simpleVersion)
+  }
+} else {
+  apply {
+    plugin("com.mooltiverse.oss.nyx")
+  }
 }
 
 dependencyResolutionManagement {
@@ -31,9 +43,8 @@ dependencyResolutionManagement {
     google()
     mavenCentral()
     maven { url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/") }
+    maven { url = uri("https://s01.oss.sonatype.org/content/groups/public/") }
     maven { url = uri("https://jitpack.io") }
-    maven { url = uri("https://repo.gradle.org/gradle/libs-releases/") }
-    maven { url = uri("https://repo.eclipse.org/content/repositories/lemminx-snapshots/") }
   }
 }
 
@@ -74,6 +85,7 @@ include(
   ":lsp:java",
   ":lsp:xml",
   ":subprojects:aaptcompiler",
+  ":subprojects:appintro",
   ":subprojects:builder-model-impl",
   ":subprojects:flashbar",
   ":subprojects:framework-stubs",
@@ -104,3 +116,43 @@ include(
   ":testing:tooling",
   ":testing:unit",
 )
+
+object FDroidConfig {
+
+  var hasRead: Boolean = false
+    private set
+
+  var isFDroidBuild: Boolean = false
+    private set
+
+  var fDroidVersionName: String? = null
+    private set
+
+  var fDroidVersionCode: Int? = null
+    private set
+
+  const val PROP_FDROID_BUILD = "ide.build.fdroid"
+  const val PROP_FDROID_BUILD_VERSION = "ide.build.fdroid.version"
+  const val PROP_FDROID_BUILD_VERCODE = "ide.build.fdroid.vercode"
+
+  fun load(rootDir: File) {
+    val propsFile = File(rootDir, "fdroid.properties")
+    if (!propsFile.exists() || !propsFile.isFile) {
+      hasRead = true
+      isFDroidBuild = false
+      return
+    }
+
+    val properties = propsFile.let { props ->
+      java.util.Properties().also {
+        it.load(props.reader())
+      }
+    }
+
+    hasRead = true
+    isFDroidBuild = properties.getProperty(PROP_FDROID_BUILD, null).toBoolean()
+
+    fDroidVersionName = properties.getProperty(PROP_FDROID_BUILD_VERSION, null)
+    fDroidVersionCode =  properties.getProperty(PROP_FDROID_BUILD_VERCODE, null)?.toInt()
+  }
+}
